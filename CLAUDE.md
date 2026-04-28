@@ -26,7 +26,7 @@ backtester run --strategy advanced_trend --symbol SPY --source samples
 streamlit run dashboard/app.py
 ```
 
-`ALPHAVANTAGE_API_KEY` must be set in the environment (or `.env`) only when `--source alphavantage` is used. Bundled samples cover AAPL, AMZN, MSFT, SPY, TSLA and require no network.
+`ALPHA_VANTAGE_API_KEY` must be set in the environment (or `.env`) only when `--source alphavantage` is used. Bundled samples cover AAPL, AMZN, MSFT, SPY, TSLA and require no network.
 
 ## Architecture
 

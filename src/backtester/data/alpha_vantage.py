@@ -1,8 +1,10 @@
 """Alpha Vantage daily OHLCV fetcher with on-disk cache.
 
-API key is read from the ``ALPHAVANTAGE_API_KEY`` environment variable.
+API key is read from the ``ALPHA_VANTAGE_API_KEY`` environment variable.
 Cached responses live under ``data_cache/alpha_vantage/`` keyed by symbol +
 fetch date, so repeated runs don't burn the free-tier quota.
+
+API key is read from ``ALPHA_VANTAGE_API_KEY``.
 """
 
 from __future__ import annotations
@@ -12,6 +14,9 @@ from datetime import date
 from pathlib import Path
 
 import pandas as pd
+from dotenv import load_dotenv
+
+load_dotenv()
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CACHE_DIR = REPO_ROOT / "data_cache" / "alpha_vantage"
@@ -30,7 +35,7 @@ def fetch_daily(
 ) -> pd.DataFrame:
     """Fetch daily OHLCV from Alpha Vantage. Returns DataFrame indexed by date.
 
-    Reads ``ALPHAVANTAGE_API_KEY`` from env when ``api_key`` is None.
+    Reads ``ALPHA_VANTAGE_API_KEY`` from env when ``api_key`` is None.
     """
     today = date.today()
     if cache:
@@ -38,10 +43,10 @@ def fetch_daily(
         if path.exists():
             return pd.read_csv(path, parse_dates=["datetime"], index_col="datetime")
 
-    key = api_key or os.environ.get("ALPHAVANTAGE_API_KEY")
+    key = api_key or os.environ.get("ALPHA_VANTAGE_API_KEY")
     if not key:
         raise RuntimeError(
-            "ALPHAVANTAGE_API_KEY not set. Export it or pass api_key explicitly."
+            "ALPHA_VANTAGE_API_KEY not set. Export it or pass api_key explicitly."
         )
 
     from alpha_vantage.timeseries import TimeSeries  # imported lazily
