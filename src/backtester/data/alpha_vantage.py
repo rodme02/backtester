@@ -16,8 +16,6 @@ from pathlib import Path
 import pandas as pd
 from dotenv import load_dotenv
 
-load_dotenv()
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CACHE_DIR = REPO_ROOT / "data_cache" / "alpha_vantage"
 
@@ -43,6 +41,7 @@ def fetch_daily(
         if path.exists():
             return pd.read_csv(path, parse_dates=["datetime"], index_col="datetime")
 
+    load_dotenv(override=False)  # re-read .env in case it was added after import.
     key = api_key or os.environ.get("ALPHA_VANTAGE_API_KEY")
     if not key:
         raise RuntimeError(

@@ -27,13 +27,17 @@ The conclusion most signals deserve is "the data doesn't support the claim." Thi
 
 ## Status
 
-**🚧 Week 1 of ~4 done.** The honest-evaluation harness is built and tested:
+**🚧 Week 2 of ~4 done.** The honest-evaluation harness, feature/model layers, and case-study #1 scaffolding are built and tested:
 
 - `eval/walkforward.py` — purged + embargoed CV
 - `eval/statistics.py` — PSR, deflated Sharpe, bootstrap, Holm
 - `eval/costs.py` — per-asset cost models
 - `eval/regimes.py` — trend & vol regime tagging
+- `features/` — technical, macro, cross-sectional builders, all leakage-tested
+- `models/gbm.py` — sklearn HistGradientBoosting wrapper
+- `strategy/cross_sectional.py` — long/short quantile construction with book-turnover costs
 - `data/{yfinance,fred,binance,universe,alpha_vantage,csv_loader}.py` — cached, point-in-time aware data layer
+- `notebooks/01_gbm_us_equities.ipynb` — case study 1 scaffolding (run end-to-end on your machine)
 
 **Case studies (in progress):**
 
@@ -69,15 +73,17 @@ For live data: copy `.env.example` to `.env`, set `ALPHA_VANTAGE_API_KEY` and/or
 src/backtester/
   data/         # csv_loader, alpha_vantage, yfinance, fred, binance, universe
   eval/         # walkforward, statistics, costs, regimes      ← rigour layer
-  features/     # (week 2+) leakage-free feature builders
-  models/       # (week 2+) GBM, sequence, sentiment-factor wrappers
-  strategies/   # backtrader baseline strategies (MA crossover, advanced trend)
-  engine/       # backtrader Cerebro wiring used as the realistic simulator
-  reporting/    # Sharpe / drawdown / win-rate / equity curve
-notebooks/      # (week 2+) one per case study
-docs/writeup.md # (week 4) long-form artifact
+  features/     # leakage-free technical, macro, cross-sectional builders
+  models/       # GBMClassifier (sklearn HistGradientBoosting); sequence/sentiment to come
+  strategy/     # cross-sectional long/short portfolio construction + book costs
+  strategies/   # backtrader baseline strategies (MA crossover, advanced trend) — legacy
+  engine/       # backtrader Cerebro wiring — legacy
+  reporting/    # backtrader analyzer→metrics shim — legacy
+notebooks/      # case studies (see notebooks/README.md)
+docs/writeup.md # long-form research artifact (in progress)
 samples/        # bundled OHLCV CSVs + universe snapshot
-tests/          # 32 tests covering the eval harness, data loaders, engine
+tests/          # 49 tests: eval harness, leakage invariants, strategy, models, data
+dashboard/      # legacy Streamlit baseline-strategy explorer
 ```
 
 ## Tech stack

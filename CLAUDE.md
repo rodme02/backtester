@@ -43,11 +43,17 @@ Two parallel layers, intentionally not yet unified:
 
 **Invariant:** every public eval function takes a numpy/pandas series of returns and is asset-class agnostic. Don't bake market-specific assumptions into eval/.
 
-### 2. The legacy backtrader simulator (baseline-strategy playground)
+### 2. The ML modelling layer
 
-`src/backtester/{strategies,engine,reporting}/` — the original backtrader wrapper. Use `engine.run_backtest(strategy_cls, df, ...)` to get a `BacktestResult` containing `equity_curve` (TimeReturn-based pandas Series) and `metrics` (sharpe / max_drawdown_pct / etc.). The Streamlit dashboard at `dashboard/app.py` consumes this. Adding a new bt.Strategy means: subclass, import in `strategies/__init__.py`, add to `REGISTRY`.
+`src/backtester/{features,models,strategy}/`:
 
-When the case-study notebooks land they will produce per-period strategy-return Series and feed them into the eval/ harness directly — bypassing the backtrader engine — because backtrader's bar-by-bar simulation is overkill for daily ML signals. The two layers are kept separate intentionally.
+- `features/{technical,macro,cross_sectional}.py` — leakage-free feature builders. Causality invariant: `f(series[:t+1])[t] == f(series)[t]`. Enforced by `tests/test_features_leakage.py` with random `t/k` sampling so accidental leakage is hard to slip past.
+- `models/gbm.py` — `GBMClassifier` (sklearn `HistGradientBoostingClassifier`). Uniform `fit / predict_proba` interface so the eval harness can swap any model in.
+- `strategy/cross_sectional.py` — the case-study notebooks consume model probability scores and run them through `long_short_quantile_weights → daily_returns_from_book → apply_book_costs` to produce a daily-return Series, which is then fed directly into the eval harness. Tested in `tests/test_strategy_cross_sectional.py`.
+
+### 3. The legacy backtrader simulator (baseline-strategy playground)
+
+`src/backtester/{strategies,engine,reporting}/` — the original backtrader wrapper. Use `engine.run_backtest(strategy_cls, df, ...)` for the bt.Strategy classes in `strategies/`. The Streamlit dashboard at `dashboard/app.py` consumes this. Kept around as a baseline-strategy playground; the ML case studies bypass it entirely (backtrader's bar-by-bar simulation is overkill for daily ML signals).
 
 ### Data layer (`src/backtester/data/`)
 

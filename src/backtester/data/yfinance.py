@@ -1,11 +1,14 @@
-"""Yahoo Finance daily OHLCV with on-disk cache.
+"""Yahoo Finance daily OHLCV with on-disk cache + transient-error retry.
 
 Free, no API key. Cache is keyed by ``symbol + (start, end) + fetch_date``
-so repeated calls within a day re-use the file.
+so repeated calls within a day re-use the file. yfinance's HTTP layer
+times out frequently; we retry with exponential backoff before giving
+up.
 """
 
 from __future__ import annotations
 
+import time
 from datetime import date
 from pathlib import Path
 
@@ -25,6 +28,8 @@ def fetch_daily(
     start: str = "2010-01-01",
     end: str | None = None,
     cache: bool = True,
+    retries: int = 3,
+    backoff: float = 1.5,
 ) -> pd.DataFrame:
     """Fetch daily OHLCV from Yahoo Finance.
 
@@ -41,9 +46,23 @@ def fetch_daily(
 
     import yfinance as yf  # imported lazily so the rest of the lib stays light
 
-    df = yf.download(symbol, start=start, end=end, progress=False, auto_adjust=False)
-    if df.empty:
-        raise RuntimeError(f"yfinance returned no rows for {symbol} {start}..{end}")
+    last_exc: Exception | None = None
+    df: pd.DataFrame | None = None
+    for attempt in range(retries):
+        try:
+            df = yf.download(
+                symbol, start=start, end=end, progress=False, auto_adjust=False
+            )
+            if df is not None and not df.empty:
+                break
+        except Exception as exc:  # noqa: BLE001 — yfinance throws bare Exception
+            last_exc = exc
+        time.sleep(backoff ** attempt)
+    if df is None or df.empty:
+        raise RuntimeError(
+            f"yfinance returned no rows for {symbol} {start}..{end}"
+            + (f" (last error: {last_exc})" if last_exc else "")
+        )
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
     df = df.rename(
