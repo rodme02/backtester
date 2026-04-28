@@ -6,10 +6,6 @@
 
 > Event-driven backtesting framework with a Streamlit lab for trying strategies on real market data.
 
-![dashboard preview](docs/dashboard.png)
-
-> _Add the screenshot above by running the dashboard locally and saving it to `docs/dashboard.png`._
-
 ## What it does
 
 - Runs trading strategies through [backtrader](https://www.backtrader.com/) with realistic commission and slippage.
