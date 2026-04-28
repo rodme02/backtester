@@ -4,14 +4,14 @@ Each notebook is a self-contained case study evaluating one ML-driven trading si
 
 | Notebook | Status | Signal | Asset class |
 | --- | --- | --- | --- |
-| `01_gbm_us_equities.ipynb` | ✅ scaffolded, ready to run | Histogram-GBM direction classifier | US equities |
-| `02_lstm_crypto.ipynb` | ⏳ week 3 | Sequence model on returns + funding | Binance USDT perps |
+| `01_gbm_us_equities.ipynb` | ✅ executed | Histogram-GBM direction classifier | US equities |
+| `02_sequence_models_crypto.ipynb` | ✅ executed | LSTM + TCN side-by-side | Binance USDT perps |
 | `03_llm_sentiment.ipynb` | ⏳ week 4 | LLM-derived sentiment factor | News-covered tickers |
 
 ## Running locally
 
 ```bash
-pip install -e ".[dev,notebooks]"
+pip install -e ".[dev,notebooks,ml]"  # ml extra adds torch (CPU) for LSTM/TCN
 cp .env.example .env  # then add ALPHA_VANTAGE_API_KEY / FRED_API_KEY
 jupyter notebook notebooks/01_gbm_us_equities.ipynb
 ```

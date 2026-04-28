@@ -13,6 +13,7 @@ Modules:
 """
 
 from .cross_sectional import momentum_rank, vol_rank
+from .crypto import basis, funding_features, open_interest_delta
 from .macro import macro_features
 from .technical import (
     atr,
@@ -24,10 +25,13 @@ from .technical import (
 
 __all__ = [
     "atr",
+    "basis",
+    "funding_features",
     "log_returns",
     "macd",
     "macro_features",
     "momentum_rank",
+    "open_interest_delta",
     "rolling_volatility",
     "rsi",
     "vol_rank",

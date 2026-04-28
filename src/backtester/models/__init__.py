@@ -8,4 +8,16 @@ so swapping models is a one-line change in a notebook.
 
 from .gbm import GBMClassifier
 
-__all__ = ["GBMClassifier"]
+
+def _try_import_sequence():
+    try:
+        from .sequence import LSTMClassifier, TCNClassifier, stack_sequences
+
+        return LSTMClassifier, TCNClassifier, stack_sequences
+    except ImportError:  # torch not installed
+        return None, None, None
+
+
+LSTMClassifier, TCNClassifier, stack_sequences = _try_import_sequence()
+
+__all__ = ["GBMClassifier", "LSTMClassifier", "TCNClassifier", "stack_sequences"]

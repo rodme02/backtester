@@ -15,10 +15,13 @@ import pytest
 
 from backtester.features import (
     atr,
+    basis,
+    funding_features,
     log_returns,
     macd,
     macro_features,
     momentum_rank,
+    open_interest_delta,
     rolling_volatility,
     rsi,
     vol_rank,
@@ -133,6 +136,35 @@ def test_vol_rank_causal(panel):
         f_row = full.iloc[t].dropna()
         p_row = partial.iloc[t].dropna()
         pd.testing.assert_series_equal(f_row, p_row, check_names=False)
+
+
+def test_funding_features_lagged():
+    cal = pd.date_range("2023-01-01", periods=60, freq="D")
+    # 3 funding prints per day, simulated as evenly spaced.
+    funding_idx = pd.date_range("2023-01-01", periods=60 * 3, freq="8h", tz="UTC")
+    funding = pd.Series(np.linspace(-0.01, 0.01, num=180), index=funding_idx, name="fr")
+    feats = funding_features(funding, cal)
+    # First-day level should be NaN (lag of 1 day).
+    assert pd.isna(feats["funding_level"].iloc[0])
+    # First-day-with-data level should equal sum of the previous day's prints.
+    expected = funding.iloc[:3].sum()  # day 0 -> appears as level on day 1
+    assert feats["funding_level"].iloc[1] == pytest.approx(expected)
+
+
+def test_basis_signal_aligned():
+    idx = pd.date_range("2023-01-01", periods=10, freq="D")
+    spot = pd.Series(100.0 * (1 + np.arange(10) * 0.01), index=idx)
+    perp = spot * 1.001
+    b = basis(spot, perp)
+    assert b.iloc[0] == pytest.approx(0.001)
+
+
+def test_open_interest_delta_basic():
+    idx = pd.date_range("2023-01-01", periods=10, freq="D")
+    oi = pd.Series(np.exp(np.arange(10) * 0.05), index=idx)
+    d = open_interest_delta(oi, window=1)
+    # log-diff of exp(0.05 * t) is 0.05 each step.
+    assert d.iloc[1:].round(6).eq(0.05).all()
 
 
 def test_macro_features_lagged_and_aligned():

@@ -43,6 +43,9 @@ notebooks = [
   "jupyter>=1.0,<2.0",
   "ipykernel>=6.29,<7.0",
 ]
+ml = [
+  "torch>=2.2,<3.0",
+]
 
 [project.scripts]
 backtester = "backtester.cli:main"

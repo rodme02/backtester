@@ -27,7 +27,7 @@ The conclusion most signals deserve is "the data doesn't support the claim." Thi
 
 ## Status
 
-**🚧 Week 2 of ~4 done.** The honest-evaluation harness, feature/model layers, and case-study #1 scaffolding are built and tested:
+**🚧 Week 3 of ~4 done.** The honest-evaluation harness, feature/model layers, and case studies 1 + 2 are built, executed, and reported:
 
 - `eval/walkforward.py` — purged + embargoed CV
 - `eval/statistics.py` — PSR, deflated Sharpe, bootstrap, Holm
@@ -35,16 +35,25 @@ The conclusion most signals deserve is "the data doesn't support the claim." Thi
 - `eval/regimes.py` — trend & vol regime tagging
 - `features/` — technical, macro, cross-sectional builders, all leakage-tested
 - `models/gbm.py` — sklearn HistGradientBoosting wrapper
+- `models/sequence.py` — LSTM and TCN (PyTorch CPU) sharing the same `fit / predict_proba` interface
 - `strategy/cross_sectional.py` — long/short quantile construction with book-turnover costs
 - `data/{yfinance,fred,binance,universe,alpha_vantage,csv_loader}.py` — cached, point-in-time aware data layer
 - `notebooks/01_gbm_us_equities.ipynb` — case study 1 scaffolding (run end-to-end on your machine)
 
 **Case studies (in progress):**
 
-1. ✅ `notebooks/01_gbm_us_equities.ipynb` — GBM on technical + macro + cross-sectional features.
-   **Verdict: fails.** Net Sharpe −0.428, Deflated SR 0.000 (n_trials=20), 95% CI [−1.03, +0.22], net annual return −7.2%. The off-the-shelf recipe doesn't survive honest evaluation. Bull-vs-bear asymmetry (+0.80 / −0.80) suggests the model picked up a short-term mean-reversion pattern that inverts in bulls. Full discussion in [`docs/writeup.md`](docs/writeup.md).
-2. ⏳ `notebooks/02_lstm_crypto.ipynb` — sequence model on Binance USDT perpetuals (week 3).
+| Case | Model | Asset | Net Sharpe | Deflated SR | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| ✅ 1 | HistGradientBoosting | US equities | −0.428 | 0.000 | **FAIL** |
+| ✅ 2a | LSTM | Crypto perps | −1.348 | 0.000 | **FAIL** |
+| ✅ 2b | TCN | Crypto perps | +0.138 | 0.001 | **FAIL** |
+| ⏳ 3 | LLM sentiment factor | News-covered tickers | — | — | week 4 |
+
+1. ✅ [`notebooks/01_gbm_us_equities.ipynb`](notebooks/01_gbm_us_equities.ipynb) — GBM on technical + macro + cross-sectional features. Off-the-shelf recipe earns no edge; bull/bear Sharpe split (−0.80 / +0.80) suggests the model picked up a short-term mean-reversion pattern that inverts in trending markets.
+2. ✅ [`notebooks/02_sequence_models_crypto.ipynb`](notebooks/02_sequence_models_crypto.ipynb) — LSTM and TCN side by side on Binance USDT perpetuals. LSTM is catastrophic out of sample; TCN looks gross-positive but drowns in 6 bps round-trip costs and the net 95% CI [−0.98, +1.21] straddles zero.
 3. ⏳ `notebooks/03_llm_sentiment.ipynb` — LLM-driven sentiment factor on news headlines (week 4).
+
+Full discussion of each in [`docs/writeup.md`](docs/writeup.md).
 
 …each evaluated through the harness above. The end-of-month deliverable is a long-form writeup at `docs/writeup.md` summarising what survived honest evaluation and what didn't.
 
