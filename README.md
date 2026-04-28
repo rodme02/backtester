@@ -1,74 +1,99 @@
-# Backtester
+# ML Signals in Markets — An Honest Evaluation
 
-[![CI](https://github.com/rodrigomedeiros/backtester/actions/workflows/ci.yml/badge.svg)](https://github.com/rodrigomedeiros/backtester/actions/workflows/ci.yml)
+[![CI](https://github.com/rodme02/backtester/actions/workflows/ci.yml/badge.svg)](https://github.com/rodme02/backtester/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 
-> Event-driven backtesting framework with a Streamlit lab for trying strategies on real market data.
+> An ML engineer's honest study of popular ML-driven trading recipes — gradient-boosted classifiers, sequence models, LLM-driven sentiment — evaluated with the rigour most blog posts skip. Tested across US equities and crypto.
 
-## What it does
+## Why this exists
 
-- Runs trading strategies through [backtrader](https://www.backtrader.com/) with realistic commission and slippage.
-- Ships two reference strategies: a clean SMA crossover with ATR-based risk sizing, and an advanced trend-follower confirmed by RSI / MACD / ADX with split bracket exits.
-- Bundles five years of daily OHLCV samples (AAPL, AMZN, MSFT, SPY, TSLA) so it works offline on a fresh clone.
-- Streamlit dashboard for interactive parameter tweaks, equity-curve and drawdown charts, and key performance metrics.
-- CLI for scripted single runs; programmatic API for parameter sweeps.
+Most "I trained a model to beat the market" projects share three sins:
 
-## Why it's interesting
+1. **Look-ahead leakage.** Features computed with information from after the prediction date.
+2. **Single-split validation.** Train/test once, report whatever Sharpe came out, claim victory.
+3. **Cosmetic costs.** Ignore commissions, half-spreads, and market impact — the things that turn paper alpha into nothing.
 
-- **Event-driven, not just vectorised.** The framework wraps backtrader's `Cerebro`, so stops, take-profits, and partial exits are simulated bar-by-bar — closer to live execution than naive `signal.shift(1) * returns` math.
-- **Strategy registry.** Adding a strategy is "subclass `bt.Strategy` and register" — no engine changes.
-- **Cached data layer.** Alpha Vantage fetches go through an on-disk cache so a parameter sweep doesn't burn the free-tier quota.
-- **Reproducible results.** Tests pin a tiny fixture run to exact metric values so refactors can't silently change the math.
+This repo is the corrective. Every signal is evaluated through the same harness:
 
-## Tech stack
+- **Purged & embargoed walk-forward CV** ([Lopez de Prado, AFML §7](https://www.wiley.com/en-us/Advances+in+Financial+Machine+Learning-p-9781119482086)) — no label leakage between folds.
+- **Deflated Sharpe Ratio** ([Bailey & Lopez de Prado 2014](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2460551)) — the multiple-trial-aware significance test that rejects most lucky strategies.
+- **Bootstrap confidence intervals** on annualised return, Sharpe, and drawdown — point estimates without intervals are vibes.
+- **Asset-class-appropriate cost models** — bps-level commission + half-spread + sqrt-impact, calibrated separately for liquid US equities and Binance USDT perpetuals.
+- **Per-regime breakdown** — bull/bear, high-vol/low-vol, so a strategy that only "works in 2017" is exposed.
+- **Holm–Bonferroni** family-wise correction when comparing models.
 
-| Layer       | Choice            | Why                                                    |
-| ----------- | ----------------- | ------------------------------------------------------ |
-| Engine      | backtrader        | Mature event-driven simulator, bracket orders built in |
-| Dashboard   | Streamlit + Plotly| Fastest path from Python to interactive UI            |
-| Data        | Alpha Vantage     | Free daily OHLCV; tier-friendly with caching          |
-| Tests / lint| pytest + ruff     | Standard, fast, opinionated                           |
+The conclusion most signals deserve is "the data doesn't support the claim." This project's framing tells that story honestly.
+
+## Status
+
+**🚧 Week 1 of ~4 done.** The honest-evaluation harness is built and tested:
+
+- `eval/walkforward.py` — purged + embargoed CV
+- `eval/statistics.py` — PSR, deflated Sharpe, bootstrap, Holm
+- `eval/costs.py` — per-asset cost models
+- `eval/regimes.py` — trend & vol regime tagging
+- `data/{yfinance,fred,binance,universe,alpha_vantage,csv_loader}.py` — cached, point-in-time aware data layer
+
+**Coming next:** three case-study notebooks and a long-form writeup —
+
+1. Gradient-boosted classifier on US equities (technical + macro features)
+2. Sequence model (LSTM/TCN) on Binance crypto perpetuals
+3. LLM-driven sentiment factor on news headlines
+
+…each evaluated through the harness above and reported in `docs/writeup.md`.
 
 ## Quickstart
 
 ```bash
-git clone https://github.com/rodrigomedeiros/backtester.git
+git clone https://github.com/rodme02/backtester.git
 cd backtester
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-streamlit run dashboard/app.py
+pytest
 ```
 
-CLI:
+The legacy backtrader engine and Streamlit dashboard remain in the repo as a baseline-strategy playground:
 
 ```bash
 backtester run --strategy ma_crossover --symbol AAPL
+streamlit run dashboard/app.py
 ```
 
-To pull live data, copy `.env.example` to `.env`, set `ALPHAVANTAGE_API_KEY`, and pass `--source alphavantage`.
+For live data: copy `.env.example` to `.env`, set `ALPHA_VANTAGE_API_KEY` and/or `FRED_API_KEY`. Yahoo Finance and Binance public endpoints need no key.
 
-## Project layout
+## Repo layout
 
 ```
 src/backtester/
-  data/         # CSV loader + cached Alpha Vantage client
-  strategies/   # MaCrossover, AdvancedTrendFollowing, REGISTRY
-  engine/       # run_backtest, optimize (grid search)
+  data/         # csv_loader, alpha_vantage, yfinance, fred, binance, universe
+  eval/         # walkforward, statistics, costs, regimes      ← rigour layer
+  features/     # (week 2+) leakage-free feature builders
+  models/       # (week 2+) GBM, sequence, sentiment-factor wrappers
+  strategies/   # backtrader baseline strategies (MA crossover, advanced trend)
+  engine/       # backtrader Cerebro wiring used as the realistic simulator
   reporting/    # Sharpe / drawdown / win-rate / equity curve
-  cli.py
-dashboard/app.py
-tests/
-samples/ohlcv/  # Bundled OHLCV CSVs
+notebooks/      # (week 2+) one per case study
+docs/writeup.md # (week 4) long-form artifact
+samples/        # bundled OHLCV CSVs + universe snapshot
+tests/          # 32 tests covering the eval harness, data loaders, engine
 ```
 
-## Roadmap / known limitations
+## Tech stack
 
-- Daily bars only; intraday timeframes not yet wired.
-- Optimiser is sequential single-process; multiprocess sweep is on the roadmap.
-- Cost model is flat commission + percentage slippage. No spread/borrow modelling.
-- No walk-forward analysis or out-of-sample split helper yet.
-- Live trading is out of scope — this is a research tool.
+| Layer       | Choice                                | Why                                                                |
+| ----------- | ------------------------------------- | ------------------------------------------------------------------ |
+| Eval harness| numpy, pandas, scipy                  | Pure-Python statistics — readable, auditable                       |
+| Data        | yfinance, FRED, Binance public, AV    | All free; cached on disk to keep iteration fast and quotas safe    |
+| Simulator   | backtrader                            | Mature event-driven engine with bracket orders                     |
+| Tests / lint| pytest + ruff                         | Standard, fast, opinionated                                        |
+| (Week 2+)   | scikit-learn, lightgbm, torch         | Boring, well-understood; the project's value is in the eval, not the model bling |
+
+## Honest limitations
+
+- Universe snapshot (`samples/universe_us_liquid.csv`) is hand-curated, not a true point-in-time index membership feed. Documented as such; replace with a paid source for production research.
+- Daily bars only — no intraday yet.
+- The backtrader engine and the eval harness are wired through a returns-series interface; they are not yet *unified* into one runner. That's intentional during the research phase.
 
 ## License
 
