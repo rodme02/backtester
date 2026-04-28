@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+build/
+dist/
+
+# Virtualenvs
+.venv/
+venv/
+env/
+ENV/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+
+# Data caches (can be regenerated)
+data_cache/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Streamlit
+.streamlit/secrets.toml
