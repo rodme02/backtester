@@ -7,6 +7,7 @@ from .statistics import (
     holm_correct,
     probabilistic_sharpe_ratio,
 )
+from .walkforward import walk_forward_splits
 
 __all__ = [
     "annualised_sharpe",
@@ -14,4 +15,5 @@ __all__ = [
     "deflated_sharpe_ratio",
     "holm_correct",
     "probabilistic_sharpe_ratio",
+    "walk_forward_splits",
 ]
