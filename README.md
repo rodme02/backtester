@@ -41,7 +41,8 @@ The conclusion most signals deserve is "the data doesn't support the claim." Thi
 
 **Case studies (in progress):**
 
-1. ✅ `notebooks/01_gbm_us_equities.ipynb` — gradient-boosted classifier on technical + macro + cross-sectional features. Built-in walk-forward CV, deflated-Sharpe & bootstrap-CI evaluation, per-regime breakdown vs SPY benchmark.
+1. ✅ `notebooks/01_gbm_us_equities.ipynb` — GBM on technical + macro + cross-sectional features.
+   **Verdict: fails.** Net Sharpe −0.428, Deflated SR 0.000 (n_trials=20), 95% CI [−1.03, +0.22], net annual return −7.2%. The off-the-shelf recipe doesn't survive honest evaluation. Bull-vs-bear asymmetry (+0.80 / −0.80) suggests the model picked up a short-term mean-reversion pattern that inverts in bulls. Full discussion in [`docs/writeup.md`](docs/writeup.md).
 2. ⏳ `notebooks/02_lstm_crypto.ipynb` — sequence model on Binance USDT perpetuals (week 3).
 3. ⏳ `notebooks/03_llm_sentiment.ipynb` — LLM-driven sentiment factor on news headlines (week 4).
 

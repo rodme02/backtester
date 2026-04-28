@@ -35,13 +35,35 @@ Block-bootstrap (20-day blocks) for autocorrelated daily returns; trend (200-day
 
 → [`notebooks/01_gbm_us_equities.ipynb`](../notebooks/01_gbm_us_equities.ipynb)
 
-**Hypothesis.** GBM on technical + macro + cross-sectional features predicts next-day return sign and a daily-rebalanced top/bottom-quintile long/short portfolio survives 1.5 bps round-trip costs.
+**Hypothesis.** A `HistGradientBoostingClassifier` on technical + macro + cross-sectional features predicts next-day return sign well enough that a daily-rebalanced top/bottom-quintile long/short portfolio survives 1.5 bps round-trip costs.
 
-**Setup.** _(fill in: universe size after yfinance pulls, design-matrix rows, fold dates, train/test sizes)_
+**Setup.**
+- Universe: 40 liquid US large-caps from `samples/universe_us_liquid.csv`, point-in-time eligibility.
+- Period: 2010-01-04 → 2024-12-30 (15 years, 3,773 trading days).
+- Features: 5/20/60-day momentum, 20-day vol, RSI(14), MACD line, cross-sectional momentum & vol ranks, VIX level + 5d change, T10Y2Y slope + change, BAA10Y credit spread + change. All leakage-tested.
+- Label: 1-day forward return sign.
+- Walk-forward: 6 expanding-window folds, 5-day embargo, label-horizon purge. Each fold trains on 18k–111k rows, tests on ~18.5k rows.
+- Portfolio: top 20% / bottom 20% of probabilities, equal-weight, dollar-neutral, daily rebalance. Costs `EQUITIES_LIQUID` = 1.5 bps round-trip on book turnover.
 
-**Results.** _(fill in: gross Sharpe, net Sharpe, deflated SR verdict, bootstrap CI, per-regime Sharpe, equity-curve summary)_
+**Results.**
 
-**Discussion.** _(fill in: which features had highest permutation importance; behaviour in 2018, 2020, 2022 drawdowns; what failure mode (if any) explains the result)_
+| Metric | Value |
+| --- | --- |
+| Annualised Sharpe (gross) | +0.022 |
+| **Annualised Sharpe (net)** | **−0.428** |
+| **Deflated SR (n_trials = 20)** | **0.000** |
+| Bootstrap 95% CI on Sharpe | [−1.030, +0.216] |
+| Approx. annualised return (net) | −7.20% |
+| Net Sharpe — bear regime | +0.799 |
+| Net Sharpe — bull regime | −0.795 |
+
+**Verdict: fails.** The strategy doesn't clear the deflated-Sharpe threshold by any margin (DSR ≈ 0). The 95% CI on Sharpe straddles zero comfortably. Net of costs the strategy *loses* ~7%/yr.
+
+**Discussion.**
+
+- The gross Sharpe is essentially zero. Costs are not the killer here — there is no signal to begin with.
+- The bull/bear asymmetry is the most interesting artefact: net Sharpe is +0.80 in bears, −0.80 in bulls. The model trained mostly on the post-GFC bull market is picking up a short-term mean-reversion pattern that quietly works when markets fall and inverts when they rise. The unconditional Sharpe averages those out to nothing.
+- This is the textbook null result: off-the-shelf technical + macro features, a strong off-the-shelf classifier, and an honest evaluation harness produce the most common outcome in retail quant research — *no edge*. Most blog posts get a positive Sharpe here because they (a) overlap forecasts to inflate the magnitude, (b) skip costs, and/or (c) report a single train/test split. Doing it properly removes the illusion.
 
 ## 4. Case study 2 — sequence model on crypto
 
