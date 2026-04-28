@@ -35,13 +35,13 @@ The conclusion most signals deserve is "the data doesn't support the claim." Thi
 - `eval/regimes.py` — trend & vol regime tagging
 - `data/{yfinance,fred,binance,universe,alpha_vantage,csv_loader}.py` — cached, point-in-time aware data layer
 
-**Coming next:** three case-study notebooks and a long-form writeup —
+**Case studies (in progress):**
 
-1. Gradient-boosted classifier on US equities (technical + macro features)
-2. Sequence model (LSTM/TCN) on Binance crypto perpetuals
-3. LLM-driven sentiment factor on news headlines
+1. ✅ `notebooks/01_gbm_us_equities.ipynb` — gradient-boosted classifier on technical + macro + cross-sectional features. Built-in walk-forward CV, deflated-Sharpe & bootstrap-CI evaluation, per-regime breakdown vs SPY benchmark.
+2. ⏳ `notebooks/02_lstm_crypto.ipynb` — sequence model on Binance USDT perpetuals (week 3).
+3. ⏳ `notebooks/03_llm_sentiment.ipynb` — LLM-driven sentiment factor on news headlines (week 4).
 
-…each evaluated through the harness above and reported in `docs/writeup.md`.
+…each evaluated through the harness above. The end-of-month deliverable is a long-form writeup at `docs/writeup.md` summarising what survived honest evaluation and what didn't.
 
 ## Quickstart
 
@@ -49,8 +49,9 @@ The conclusion most signals deserve is "the data doesn't support the claim." Thi
 git clone https://github.com/rodme02/backtester.git
 cd backtester
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[dev,notebooks]"
 pytest
+jupyter notebook notebooks/01_gbm_us_equities.ipynb
 ```
 
 The legacy backtrader engine and Streamlit dashboard remain in the repo as a baseline-strategy playground:

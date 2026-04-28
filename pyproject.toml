@@ -39,6 +39,10 @@ dev = [
   "pytest>=8.0,<9.0",
   "ruff>=0.4,<1.0",
 ]
+notebooks = [
+  "jupyter>=1.0,<2.0",
+  "ipykernel>=6.29,<7.0",
+]
 
 [project.scripts]
 backtester = "backtester.cli:main"
@@ -49,6 +53,7 @@ where = ["src"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+extend-exclude = ["notebooks/"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
