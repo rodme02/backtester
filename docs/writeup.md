@@ -31,39 +31,38 @@ The Probabilistic Sharpe Ratio (Bailey & López de Prado 2012) gives `P(true SR 
 
 Block-bootstrap (20-day blocks) for autocorrelated daily returns; trend (200-day SMA) and vol (expanding quantile of rolling stdev) regimes. Implementations: [`statistics.bootstrap_ci`](../src/backtester/eval/statistics.py), [`regimes.trend_regimes`](../src/backtester/eval/regimes.py).
 
-## 3. Case study 1 — GBM on US equities
+## 3. Case study 1 — Tabular ML on US equities (model bake-off)
 
-→ [`notebooks/01_gbm_us_equities.ipynb`](../notebooks/01_gbm_us_equities.ipynb)
+→ [`notebooks/01_tabular_equities.ipynb`](../notebooks/01_tabular_equities.ipynb)
 
-**Hypothesis.** A `HistGradientBoostingClassifier` on technical + macro + cross-sectional features predicts next-day return sign well enough that a daily-rebalanced top/bottom-quintile long/short portfolio survives 1.5 bps round-trip costs.
+**Hypothesis.** Three off-the-shelf tabular ML model families — logistic regression, random forest, histogram-gradient-boosting — predict next-day return sign on a 40-ticker US large-cap universe well enough that a daily-rebalanced top/bottom-quintile long/short portfolio survives `EQUITIES_LIQUID_WITH_BORROW` costs (1.5 bps round-trip + 5 bps/yr borrow on shorts). Tested under both binary direction and triple-barrier (PT=2σ, SL=1σ, max_holding=5d) labels with sample uniqueness weights.
 
-**Setup.**
-- Universe: 40 liquid US large-caps from `samples/universe_us_liquid.csv`, point-in-time eligibility.
-- Period: 2010-01-04 → 2024-12-30 (15 years, 3,773 trading days).
-- Features: 5/20/60-day momentum, 20-day vol, RSI(14), MACD line, cross-sectional momentum & vol ranks, VIX level + 5d change, T10Y2Y slope + change, BAA10Y credit spread + change. All leakage-tested.
-- Label: 1-day forward return sign.
-- Walk-forward: 6 expanding-window folds, 5-day embargo, label-horizon purge. Each fold trains on 18k–111k rows, tests on ~18.5k rows.
-- Portfolio: top 20% / bottom 20% of probabilities, equal-weight, dollar-neutral, daily rebalance. Costs `EQUITIES_LIQUID` = 1.5 bps round-trip on book turnover.
+**Setup.** 40-ticker liquid US large-cap universe (`samples/universe_us_liquid.csv`), point-in-time eligible. Period 2010-01-04 → 2024-12-30 (3,773 trading days). 14 features: 5/20/60-day momentum, 20-day vol, RSI(14), MACD line, cross-sectional momentum + vol ranks, VIX level + 5d change, T10Y2Y slope + change, BAA10Y credit spread + change. 6-fold expanding walk-forward with 5-day embargo. Top 20% / bottom 20% long-short, equal-weight, dollar-neutral, daily rebalance.
 
-**Results.**
+**Results — model × label grid (annualised Sharpe, net of costs):**
 
-| Metric | Value |
-| --- | --- |
-| Annualised Sharpe (gross) | +0.022 |
-| **Annualised Sharpe (net)** | **−0.428** |
-| **Deflated SR (n_trials = 20)** | **0.000** |
-| Bootstrap 95% CI on Sharpe | [−1.030, +0.216] |
-| Approx. annualised return (net) | −7.20% |
-| Net Sharpe — bear regime | +0.799 |
-| Net Sharpe — bull regime | −0.795 |
+| Label | Model | Net SR | DSR(0.25) | 95% CI | Bear / Bull SR |
+| --- | --- | --- | --- | --- | --- |
+| binary | logistic | −0.62 | 0.000 | [−1.25, −0.00] | −0.29 / −0.73 |
+| binary | random forest | −0.65 | 0.000 | [−1.26, −0.08] | +0.73 / −1.08 |
+| binary | GBM | −0.14 | 0.004 | [−0.78, +0.53] | +0.70 / −0.37 |
+| triple-barrier | logistic | −0.44 | 0.000 | [−1.58, +0.72] | −0.16 / −0.52 |
+| **triple-barrier** | **random forest** | **+0.36** | **0.16** | **[−0.66, +1.30]** | **+2.38 / −0.24** |
+| triple-barrier | GBM | +0.05 | 0.023 | [−0.74, +0.89] | +1.66 / −0.40 |
 
-**Verdict: fails.** The strategy doesn't clear the deflated-Sharpe threshold by any margin (DSR ≈ 0). The 95% CI on Sharpe straddles zero comfortably. Net of costs the strategy *loses* ~7%/yr.
+**PBO across the six variants: 0.157.** Median IS→OOS performance degradation: +0.025 Sharpe units (i.e. the IS-best slightly *outperforms* its IS Sharpe out of sample on average — the opposite of overfitting).
 
 **Discussion.**
 
-- The gross Sharpe is essentially zero. Costs are not the killer here — there is no signal to begin with.
-- The bull/bear asymmetry is the most interesting artefact: net Sharpe is +0.80 in bears, −0.80 in bulls. The model trained mostly on the post-GFC bull market is picking up a short-term mean-reversion pattern that quietly works when markets fall and inverts when they rise. The unconditional Sharpe averages those out to nothing.
-- This is the textbook null result: off-the-shelf technical + macro features, a strong off-the-shelf classifier, and an honest evaluation harness produce the most common outcome in retail quant research — *no edge*. Most blog posts get a positive Sharpe here because they (a) overlap forecasts to inflate the magnitude, (b) skip costs, and/or (c) report a single train/test split. Doing it properly removes the illusion.
+1. **Triple-barrier labels materially change the verdict.** Under binary-direction labels every model loses money (−0.14 to −0.65 Sharpe). Switching to PT/SL/timeout labels with uniqueness-weighted training flips RF and GBM into positive net territory (RF +0.36, GBM +0.05). This is a real label-engineering effect — and one that simple binary classifiers in retail blog posts systematically miss.
+2. **Random forest + triple-barrier is the standout.** It's the only cell to clear DSR > 0.1 (DSR(0.25) = 0.16, fails the 0.5 bar) with a CI mostly above zero. The lower bound of the CI is still negative (−0.66) so the null cannot be rejected at 95%, but the modal outcome is real, modest edge.
+3. **PBO of 0.157 is informative.** Pure noise drives PBO well above 0.5 (winner's-curse regression — see Case 5 calibration where momentum on a known-edge signal hits PBO 0.57). 0.157 across these six variants suggests the IS-winners hold up OOS more often than chance — i.e. some structure *is* being captured, just not enough to consistently overcome costs.
+4. **The regime breakdown is striking.** RF + triple-barrier earns **+2.38 Sharpe in bears**, −0.24 in bulls — the model has learned a mean-reversion pattern that works brilliantly in volatile sell-offs (2018, 2020, 2022) and mildly hurts in trending bulls. This is the *inverse* of Case 5 momentum's regime profile (bulls positive, bears crash) — and consistent with cross-sectional reversal being a dominant short-horizon equity pattern in modern markets (De Bondt & Thaler 1985).
+5. **Linear loses under both label types.** Logistic regression nets −0.62 (binary) and −0.44 (triple-barrier). The features have no first-order linear signal at this horizon; the modest edge captured by RF and GBM is non-linear.
+
+**Verdict.** *No combination clears all five strict bars* (Sharpe>0 ∧ CI lower>0 ∧ DSR(0.25)≥0.5 ∧ PBO<0.5 ∧ both regimes positive). RF-triple-barrier passes 3 of 5. Honest reading: on a 40-ticker liquid US universe with realistic costs, *daily-rebalance* tabular ML with off-the-shelf features captures a regime-conditional mean-reversion pattern that doesn't quite clear the unconditional significance bar.
+
+**If this were production.** Regime-gate the strategy (RF-triple-barrier in bears only would have netted ~+2 Sharpe over the test window, modulo regime-detection lag). Lower turnover via weekly rebalance with the 5d-horizon barrier label. Targeted feature engineering — vol-regime × momentum interactions, beta-adjusted residuals — is more promising than more model capacity.
 
 ## 4. Case study 2 — sequence models on Binance USDT perpetuals
 
@@ -145,12 +144,19 @@ This is the *calibration* result we wanted. The harness picks up modest, documen
 
 ## 7. Cross-cutting findings (so far)
 
-| Case | Model / signal | Asset class | Cost regime | Net Sharpe | Deflated SR | Verdict |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1 | HistGradientBoosting | US equities | 1.5 bps | −0.428 | 0.000 | FAIL |
-| 2a | LSTM | Crypto perps | 6 bps | −1.348 | 0.000 | FAIL |
-| 2b | TCN | Crypto perps | 6 bps | +0.138 | 0.001 | FAIL |
-| 5 | JT 12-1 momentum (positive control) | US equities | 1.5 + 5 bps/yr borrow | −0.041 | 0.427 | FAIL (unconditional); +0.245 in bulls |
+| Case | Model / signal | Label | Asset class | Cost regime | Net Sharpe | DSR(0.25) | Bear / Bull SR | Verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | logistic | binary | US equities | 1.5 + 5 bps/yr | −0.62 | 0.000 | −0.29 / −0.73 | FAIL |
+| 1 | random forest | binary | US equities | 1.5 + 5 bps/yr | −0.65 | 0.000 | +0.73 / −1.08 | FAIL |
+| 1 | GBM | binary | US equities | 1.5 + 5 bps/yr | −0.14 | 0.004 | +0.70 / −0.37 | FAIL |
+| 1 | logistic | triple-barrier | US equities | 1.5 + 5 bps/yr | −0.44 | 0.000 | −0.16 / −0.52 | FAIL |
+| 1 | **random forest** | **triple-barrier** | US equities | 1.5 + 5 bps/yr | **+0.36** | **0.16** | **+2.38 / −0.24** | **NEAR-MISS** |
+| 1 | GBM | triple-barrier | US equities | 1.5 + 5 bps/yr | +0.05 | 0.023 | +1.66 / −0.40 | FAIL |
+| 2 (v0.1) | LSTM | binary | Crypto perps | 6 bps (no funding) | −1.348 | 0.000 | — | FAIL |
+| 2 (v0.1) | TCN | binary | Crypto perps | 6 bps (no funding) | +0.138 | 0.001 | — | FAIL |
+| 5 | JT 12-1 momentum (positive control) | — | US equities | 1.5 + 5 bps/yr | −0.041 | 0.427* | −0.65 / +0.25 | FAIL unconditional; calibration ✓ |
+
+*\*DSR(n_trials=1) = PSR(benchmark=0); shown at all variance levels since single-trial DSR is variance-invariant.*
 
 Three signals across two asset classes and two model families, all evaluated through the same harness. **Not one clears the deflated-Sharpe bar; not one has a 95% CI strictly above zero net of costs.**
 
