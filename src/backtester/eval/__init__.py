@@ -2,7 +2,14 @@
 costs, regimes, feature importance.
 """
 
-from .costs import CRYPTO_PERP, EQUITIES_LIQUID, CostModel, apply_costs
+from .costs import (
+    CRYPTO_PERP,
+    CRYPTO_PERP_WITH_FUNDING,
+    EQUITIES_LIQUID,
+    EQUITIES_LIQUID_WITH_BORROW,
+    CostModel,
+    apply_costs,
+)
 from .cpcv import cpcv_splits, group_bounds, n_paths, reconstruct_paths
 from .feature_importance import mda_manual, mda_sklearn
 from .pbo import probability_of_backtest_overfitting
@@ -19,8 +26,10 @@ from .walkforward import walk_forward_splits
 
 __all__ = [
     "CRYPTO_PERP",
+    "CRYPTO_PERP_WITH_FUNDING",
     "CostModel",
     "EQUITIES_LIQUID",
+    "EQUITIES_LIQUID_WITH_BORROW",
     "annualised_sharpe",
     "apply_costs",
     "bootstrap_ci",

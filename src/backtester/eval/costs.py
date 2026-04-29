@@ -1,22 +1,27 @@
 """Trading-cost models applied to a position/return series.
 
-A ``CostModel`` charges three components per turnover-equivalent unit:
+A ``CostModel`` charges per-turnover (commission + half-spread +
+sqrt-impact) and optionally a per-day *holding* cost. Holding costs
+matter for two cases:
 
-- ``commission_bps``  — exchange fees + broker commission, basis points
-  on notional traded.
-- ``half_spread_bps`` — paying half the bid-ask spread on each fill.
-- ``impact_coef``     — square-root market-impact term;
-  ``impact_coef * sqrt(participation)`` bps. Set to 0 to disable.
+- **Equity short borrow.** Brokers charge an annualised rate (5–25 bps
+  for liquid names) on the absolute short notional, accruing daily.
+- **Crypto perp funding.** Longs pay positive funding to shorts (and
+  vice versa) every 8h. We model this as a holding cost where the
+  per-period rate is the funding-rate series itself, applied to the
+  signed position (so positive-funding longs pay, shorts receive).
 
-``apply_costs(returns, positions, model, ...)`` returns the cost-
-adjusted return series. Costs are charged on the **change** in
-position from one period to the next (turnover), not on the position
-itself.
+``apply_costs(returns, positions, model, funding_rate=None,
+borrow_rate_bps_year=None, ...)`` returns the cost-adjusted return
+series.
 
 Default profiles roughly match real-world friction:
 
-- ``EQUITIES_LIQUID``  — US blue-chip retail-broker reality (Alpaca-ish).
-- ``CRYPTO_PERP``      — Binance USDT perpetual taker fees.
+- ``EQUITIES_LIQUID``  — US blue-chip retail-broker; trade only.
+- ``EQUITIES_LIQUID_WITH_BORROW`` — same + 5 bps/yr short borrow.
+- ``CRYPTO_PERP``      — Binance USDT perpetual taker fees; trade only.
+- ``CRYPTO_PERP_WITH_FUNDING`` — same; ``apply_costs`` will pull in a
+  funding-rate series at call time.
 """
 
 from __future__ import annotations
@@ -34,14 +39,28 @@ class CostModel:
     commission_bps: float
     half_spread_bps: float
     impact_coef: float = 0.0
+    borrow_bps_year: float = 0.0
+    """Annualised short-borrow rate in bps. Charged daily on |position|
+    when position < 0. 0 → disabled."""
+    fund_with_funding_rate: bool = False
+    """When True, ``apply_costs`` expects a ``funding_rate`` series and
+    charges/credits each period: long pays positive funding, short
+    receives. Independent of ``commission_bps`` / ``half_spread_bps``
+    which still apply to turnover."""
 
     @property
     def per_turnover_bps(self) -> float:
         return self.commission_bps + self.half_spread_bps
 
 
-EQUITIES_LIQUID = CostModel(commission_bps=0.5, half_spread_bps=1.0, impact_coef=0.0)
-CRYPTO_PERP = CostModel(commission_bps=4.0, half_spread_bps=2.0, impact_coef=0.0)
+EQUITIES_LIQUID = CostModel(commission_bps=0.5, half_spread_bps=1.0)
+EQUITIES_LIQUID_WITH_BORROW = CostModel(
+    commission_bps=0.5, half_spread_bps=1.0, borrow_bps_year=5.0
+)
+CRYPTO_PERP = CostModel(commission_bps=4.0, half_spread_bps=2.0)
+CRYPTO_PERP_WITH_FUNDING = CostModel(
+    commission_bps=4.0, half_spread_bps=2.0, fund_with_funding_rate=True
+)
 
 
 def apply_costs(
@@ -50,37 +69,64 @@ def apply_costs(
     model: CostModel,
     *,
     participation: float | pd.Series | None = None,
+    funding_rate: pd.Series | None = None,
+    periods_per_year: int = 252,
 ) -> pd.Series:
-    """Apply costs to a strategy-return series.
-
-    Costs are charged each period proportional to ``|Δ position|``.
+    """Apply commission + spread + impact + borrow + funding costs.
 
     Parameters
     ----------
     returns
-        Per-period strategy return *before* costs (e.g. position * asset_return).
+        Per-period strategy return *before* costs (e.g.
+        ``position * asset_return``).
     positions
-        Position weight at each period. Same length as ``returns``.
+        Signed position weight at each period. Same length as
+        ``returns``.
     model
-        Cost model with bps charges per unit turnover.
+        Cost model.
     participation
         Optional participation rate (fraction of period volume the
-        trade represents). Drives the sqrt market-impact term. Scalar
-        or per-period series. Ignored when ``model.impact_coef`` is 0.
+        trade represents). Drives the sqrt market-impact term.
+    funding_rate
+        Per-period funding rate to charge (long pays positive funding,
+        short receives) when ``model.fund_with_funding_rate`` is True.
+    periods_per_year
+        Used to convert ``borrow_bps_year`` to a per-period rate.
     """
-    r = pd.Series(np.asarray(returns, dtype=float))
-    pos = pd.Series(np.asarray(positions, dtype=float))
+    r = pd.Series(np.asarray(returns, dtype=float)).reset_index(drop=True)
+    pos = pd.Series(np.asarray(positions, dtype=float)).reset_index(drop=True)
     if r.size != pos.size:
         raise ValueError("returns and positions must have the same length")
 
-    turnover = pos.diff().abs().fillna(pos.iloc[0])
+    turnover = pos.diff().abs().fillna(pos.iloc[0].__abs__())
     cost_bps = pd.Series(model.per_turnover_bps, index=turnover.index)
 
     if model.impact_coef:
         if participation is None:
             raise ValueError("impact_coef > 0 requires participation")
-        part = pd.Series(participation, index=turnover.index, dtype=float)
+        part = pd.Series(participation).reset_index(drop=True).astype(float)
         cost_bps = cost_bps + model.impact_coef * np.sqrt(part.clip(lower=0.0))
 
     cost = turnover * cost_bps * BPS
+
+    if model.borrow_bps_year > 0:
+        per_period = (model.borrow_bps_year / periods_per_year) * BPS
+        short_notional = (-pos).clip(lower=0.0)
+        cost = cost + short_notional * per_period
+
+    if model.fund_with_funding_rate:
+        if funding_rate is None:
+            raise ValueError(
+                "fund_with_funding_rate=True requires a funding_rate series"
+            )
+        fr = pd.Series(np.asarray(funding_rate, dtype=float)).reset_index(drop=True)
+        if fr.size != r.size:
+            raise ValueError(
+                "funding_rate must have same length as returns/positions"
+            )
+        # Long pays positive funding (cost = +pos * funding); short
+        # receives (cost = -|pos| * funding when pos < 0 and funding > 0
+        # → negative cost = revenue). Both cases captured by pos * fr.
+        cost = cost + pos * fr
+
     return r - cost
