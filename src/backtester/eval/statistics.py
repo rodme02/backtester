@@ -93,9 +93,21 @@ def deflated_sharpe_ratio(
 
     The benchmark SR is inflated to the expected maximum SR under the
     null across ``n_trials`` strategy candidates with cross-trial
-    Sharpe-ratio variance ``trials_sr_var`` (annualised). When
-    ``trials_sr_var`` is omitted, defaults to 1.0 — a conservative
-    placeholder; pass the empirical value when comparing many models.
+    Sharpe-ratio variance ``trials_sr_var`` (annualised).
+
+    ``trials_sr_var`` is a methodological choice, not an empirical
+    measurement. Reasonable values:
+
+    - ``1.0`` (default) — *worst case*: trial Sharpes are completely
+      independent. Very pessimistic for closely-related models on the
+      same data.
+    - ``0.25–0.5`` — realistic for trials that share data and most
+      hyperparameters but differ in 1–2 axes.
+    - ``0.05–0.10`` — strong overlap (e.g. learning-rate sweep on the
+      same model).
+
+    Always report :func:`dsr_sensitivity` across this range so the
+    reader can see how the verdict moves with the assumption.
     """
     if n_trials < 1:
         raise ValueError("n_trials must be >= 1")
@@ -119,6 +131,31 @@ def deflated_sharpe_ratio(
     )
 
 
+def dsr_sensitivity(
+    returns: np.ndarray | Sequence[float],
+    *,
+    n_trials: int,
+    var_grid: Sequence[float] = (1.0, 0.5, 0.25, 0.1),
+    periods_per_year: int = PERIODS_PER_YEAR_DEFAULT,
+) -> dict[float, float]:
+    """Compute Deflated Sharpe across multiple ``trials_sr_var`` assumptions.
+
+    Returns ``{var: dsr_at_var}`` so the reader can see how the
+    verdict moves with the cross-trial-variance assumption. Reporting
+    a single DSR value at ``var=1.0`` (the worst case) without
+    sensitivity reads as p-hacked pessimism.
+    """
+    return {
+        float(v): deflated_sharpe_ratio(
+            returns,
+            n_trials=n_trials,
+            trials_sr_var=float(v),
+            periods_per_year=periods_per_year,
+        )
+        for v in var_grid
+    }
+
+
 @dataclass(frozen=True)
 class BootstrapResult:
     point: float
@@ -134,27 +171,53 @@ def bootstrap_ci(
     n_resamples: int = 2000,
     confidence: float = 0.95,
     block_size: int | None = None,
+    method: str = "stationary",
     rng: np.random.Generator | None = None,
 ) -> BootstrapResult:
     """Percentile bootstrap CI for ``statistic(returns)``.
 
-    Use ``block_size`` for a stationary bootstrap-style block resample
-    when the series is autocorrelated (typical for daily returns).
+    For autocorrelated series (typical of daily returns), pass
+    ``block_size`` and choose ``method``:
+
+    - ``"stationary"`` (default): Politis-Romano (1994) stationary
+      block bootstrap. At each step, with probability ``1/block_size``
+      jump to a fresh random index; otherwise advance by one. Block
+      lengths are Geometric(1/L); the resampled series itself is
+      stationary, which is the property the asymptotic CI math
+      assumes.
+    - ``"fixed"``: classical circular block bootstrap with non-random
+      block length ``block_size``. Faster but the resampled series is
+      *not* stationary at the block boundaries.
+    - ``"iid"`` (or ``block_size <= 1``): standard non-overlapping
+      bootstrap.
     """
     r = np.asarray(returns, dtype=float)
     if r.size < 2:
         raise ValueError("Need at least two observations to bootstrap.")
     if not 0 < confidence < 1:
         raise ValueError("confidence must be in (0, 1).")
+    if method not in ("stationary", "fixed", "iid"):
+        raise ValueError("method must be 'stationary', 'fixed', or 'iid'.")
     rng = rng or np.random.default_rng()
 
     n = r.size
     samples = np.empty(n_resamples, dtype=float)
-    if block_size is None or block_size <= 1:
+
+    use_block = block_size is not None and block_size > 1 and method != "iid"
+    if not use_block:
         for i in range(n_resamples):
             idx = rng.integers(0, n, size=n)
             samples[i] = statistic(r[idx])
-    else:
+    elif method == "stationary":
+        p = 1.0 / float(block_size)
+        for i in range(n_resamples):
+            idx = np.empty(n, dtype=np.int64)
+            idx[0] = rng.integers(0, n)
+            jumps = rng.random(n - 1) < p
+            for t in range(1, n):
+                idx[t] = rng.integers(0, n) if jumps[t - 1] else (idx[t - 1] + 1) % n
+            samples[i] = statistic(r[idx])
+    else:  # method == "fixed"
         n_blocks = math.ceil(n / block_size)
         for i in range(n_resamples):
             starts = rng.integers(0, n - block_size + 1, size=n_blocks)

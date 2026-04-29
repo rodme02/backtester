@@ -71,6 +71,37 @@ def test_bootstrap_ci_block_resample_runs():
     assert res.lower <= res.point <= res.upper
 
 
+def test_bootstrap_ci_method_choices_run():
+    r = _normal_returns(400, mu=0.0, sigma=0.01, seed=7)
+    for method in ("stationary", "fixed", "iid"):
+        res = bootstrap_ci(
+            r, statistic=annualised_sharpe, n_resamples=100,
+            block_size=20, method=method,
+        )
+        assert res.samples.shape == (100,)
+        assert res.lower <= res.point <= res.upper
+
+
+def test_bootstrap_ci_invalid_method_raises():
+    import pytest
+    r = _normal_returns(50, mu=0.0, sigma=0.01)
+    with pytest.raises(ValueError):
+        bootstrap_ci(r, statistic=annualised_sharpe, method="bogus")
+
+
+def test_dsr_sensitivity_decreases_with_var():
+    """At fixed n_trials, DSR should be monotone non-increasing in
+    trials_sr_var (more variance → harder benchmark)."""
+    from backtester.eval.statistics import dsr_sensitivity
+
+    rng = np.random.default_rng(11)
+    r = rng.normal(0.001, 0.01, size=2000)
+    out = dsr_sensitivity(r, n_trials=20, var_grid=(0.1, 0.25, 0.5, 1.0))
+    values = [out[v] for v in (0.1, 0.25, 0.5, 1.0)]
+    # Non-increasing within a small tolerance for sampling noise.
+    assert all(values[i] >= values[i + 1] - 1e-6 for i in range(len(values) - 1))
+
+
 def test_holm_rejects_only_smallest_when_appropriate():
     # 4 p-values: only the smallest should clearly survive Holm at alpha=0.05.
     decisions = holm_correct([0.001, 0.04, 0.5, 0.9], alpha=0.05)
