@@ -143,3 +143,121 @@ def fetch_funding_rate(
     if cache:
         _write_cache(name, df)
     return df
+
+
+def fetch_premium_index_klines(
+    symbol: str,
+    *,
+    interval: str = "1d",
+    start: str | datetime | None = None,
+    end: str | datetime | None = None,
+    cache: bool = True,
+) -> pd.DataFrame:
+    """Fetch perp/spot premium-index klines (basis history).
+
+    The premium index is a smoothed perp/spot price-gap measure;
+    ``close`` is the daily basis level.
+    """
+    if fixture_mode_active():
+        df = load_fixture(f"binance_premium_{symbol.upper()}_{interval}.csv")
+        if df is not None:
+            return df
+    name = f"premium_{symbol.upper()}_{interval}_{start}_{end}"
+    if cache and (cached := _read_cache(name)) is not None:
+        return cached
+
+    params: dict[str, object] = {
+        "symbol": symbol.upper(),
+        "interval": interval,
+        "limit": 1500,
+    }
+    start_ts = _to_ts(start)
+    end_ts = _to_ts(end)
+    if start_ts is not None:
+        params["startTime"] = start_ts
+    if end_ts is not None:
+        params["endTime"] = end_ts
+
+    resp = requests.get(
+        FUTURES_BASE + "/fapi/v1/premiumIndexKlines", params=params, timeout=15
+    )
+    resp.raise_for_status()
+    raw = resp.json()
+    if not raw:
+        return pd.DataFrame(
+            columns=["premium"], index=pd.DatetimeIndex([], name="datetime")
+        )
+
+    cols = [
+        "open_time", "open", "high", "low", "close", "_v",
+        "close_time", "_qav", "_n", "_tb", "_tq", "_ignore",
+    ]
+    df = pd.DataFrame(raw, columns=cols)
+    df["datetime"] = pd.to_datetime(df["open_time"], unit="ms", utc=True)
+    df = df.set_index("datetime")[["close"]].astype(float)
+    df.columns = ["premium"]
+
+    if cache:
+        _write_cache(name, df)
+    return df
+
+
+def fetch_long_short_ratio(
+    symbol: str,
+    *,
+    period: str = "1d",
+    kind: Literal["top_account", "top_position", "global_account"] = "top_account",
+    start: str | datetime | None = None,
+    end: str | datetime | None = None,
+    cache: bool = True,
+) -> pd.DataFrame:
+    """Fetch top-trader / global long-short ratio.
+
+    Note Binance's REST history is rolling 30 days only; collect
+    prospectively for longer windows.
+    """
+    if fixture_mode_active():
+        df = load_fixture(f"binance_lsr_{kind}_{symbol.upper()}_{period}.csv")
+        if df is not None:
+            return df
+    name = f"lsr_{kind}_{symbol.upper()}_{period}_{start}_{end}"
+    if cache and (cached := _read_cache(name)) is not None:
+        return cached
+
+    endpoint = {
+        "top_account": "/futures/data/topLongShortAccountRatio",
+        "top_position": "/futures/data/topLongShortPositionRatio",
+        "global_account": "/futures/data/globalLongShortAccountRatio",
+    }[kind]
+
+    params: dict[str, object] = {
+        "symbol": symbol.upper(),
+        "period": period,
+        "limit": 500,
+    }
+    start_ts = _to_ts(start)
+    end_ts = _to_ts(end)
+    if start_ts is not None:
+        params["startTime"] = start_ts
+    if end_ts is not None:
+        params["endTime"] = end_ts
+
+    resp = requests.get(FUTURES_BASE + endpoint, params=params, timeout=15)
+    resp.raise_for_status()
+    raw = resp.json()
+    if not raw:
+        return pd.DataFrame(
+            columns=["long_ratio", "short_ratio", "long_short_ratio"],
+            index=pd.DatetimeIndex([], name="datetime"),
+        )
+
+    df = pd.DataFrame(raw)
+    df["datetime"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
+    df = df.set_index("datetime")[
+        ["longAccount", "shortAccount", "longShortRatio"]
+    ].astype(float)
+    df.columns = ["long_ratio", "short_ratio", "long_short_ratio"]
+
+    if cache:
+        _write_cache(name, df)
+    return df
