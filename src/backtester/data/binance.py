@@ -20,6 +20,8 @@ from typing import Literal
 import pandas as pd
 import requests
 
+from ._fixture import fixture_mode_active, load_fixture
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CACHE_DIR = REPO_ROOT / "data_cache" / "binance"
 
@@ -63,6 +65,10 @@ def fetch_klines(
     cache: bool = True,
 ) -> pd.DataFrame:
     """Fetch OHLCV klines. Returns columns: open, high, low, close, volume."""
+    if fixture_mode_active():
+        df = load_fixture(f"binance_klines_{market}_{symbol.upper()}_{interval}.csv")
+        if df is not None:
+            return df
     name = f"klines_{market}_{symbol.upper()}_{interval}_{start}_{end}"
     if cache and (cached := _read_cache(name)) is not None:
         return cached
@@ -107,6 +113,10 @@ def fetch_funding_rate(
     cache: bool = True,
 ) -> pd.DataFrame:
     """Fetch perpetual funding-rate history (8h granularity)."""
+    if fixture_mode_active():
+        df = load_fixture(f"binance_funding_{symbol.upper()}.csv")
+        if df is not None:
+            return df
     name = f"funding_{symbol.upper()}_{start}_{end}"
     if cache and (cached := _read_cache(name)) is not None:
         return cached

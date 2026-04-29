@@ -14,6 +14,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from ._fixture import fixture_mode_active, load_fixture
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CACHE_DIR = REPO_ROOT / "data_cache" / "yfinance"
 
@@ -37,6 +39,10 @@ def fetch_daily(
     ``open/high/low/close/volume`` columns to match the rest of the
     framework.
     """
+    if fixture_mode_active():
+        df = load_fixture(f"yfinance_{symbol.upper()}.csv")
+        if df is not None:
+            return df
     end = end or date.today().isoformat()
     today = date.today()
     if cache:

@@ -18,6 +18,8 @@ from pathlib import Path
 import pandas as pd
 from dotenv import load_dotenv
 
+from ._fixture import fixture_mode_active, load_fixture
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CACHE_DIR = REPO_ROOT / "data_cache" / "fred"
 
@@ -33,6 +35,10 @@ def fetch_series(
     cache: bool = True,
 ) -> pd.Series:
     """Fetch a FRED series by ID, return as a date-indexed pandas Series."""
+    if fixture_mode_active():
+        df = load_fixture(f"fred_{series_id}.csv")
+        if df is not None:
+            return df.iloc[:, 0]
     today = date.today()
     if cache:
         path = _cache_path(series_id, today)
