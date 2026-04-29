@@ -4,7 +4,12 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from backtester.models import LSTMClassifier, TCNClassifier, stack_sequences  # noqa: E402
+from backtester.models import (  # noqa: E402
+    LSTMClassifier,
+    TCNClassifier,
+    TransformerClassifier,
+    stack_sequences,
+)
 
 
 def _toy_panel(n_dates: int = 80, tickers=("A", "B", "C")):
@@ -37,7 +42,9 @@ def test_stack_sequences_no_leakage():
     pd.testing.assert_frame_equal(full.loc[common], truncated.loc[common])
 
 
-@pytest.mark.parametrize("Model", [LSTMClassifier, TCNClassifier])
+@pytest.mark.parametrize(
+    "Model", [LSTMClassifier, TCNClassifier, TransformerClassifier]
+)
 def test_sequence_model_fits_and_predicts(Model):
     rng = np.random.default_rng(0)
     n, lookback, n_features = 200, 8, 3

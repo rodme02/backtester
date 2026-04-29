@@ -227,6 +227,39 @@ class _TCNNet:
         self.net = _Net()
 
 
+class _TransformerNet:
+    """Small encoder-only Transformer: input proj → 2 self-attention layers → last-token head."""
+
+    def __init__(self, n_features: int, hidden: int, n_heads: int = 2, n_layers: int = 2):
+        from torch import nn
+
+        head_dim = hidden // n_heads
+        d_model = head_dim * n_heads  # ensure divisibility
+
+        class _Net(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.proj = nn.Linear(n_features, d_model)
+                encoder_layer = nn.TransformerEncoderLayer(
+                    d_model=d_model,
+                    nhead=n_heads,
+                    dim_feedforward=2 * d_model,
+                    dropout=0.0,
+                    batch_first=True,
+                    activation="relu",
+                )
+                self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+                self.head = nn.Linear(d_model, 1)
+
+            def forward(self, x):
+                # x: (N, T, F) -> (N, T, d_model)
+                x = self.proj(x)
+                x = self.encoder(x)
+                return self.head(x[:, -1, :])
+
+        self.net = _Net()
+
+
 @dataclass
 class LSTMClassifier(_BaseSequenceClassifier):
     def _build_model(self):
@@ -237,3 +270,15 @@ class LSTMClassifier(_BaseSequenceClassifier):
 class TCNClassifier(_BaseSequenceClassifier):
     def _build_model(self):
         return _TCNNet(self.n_features, self.hidden).net
+
+
+@dataclass
+class TransformerClassifier(_BaseSequenceClassifier):
+    n_heads: int = 2
+    n_layers: int = 2
+
+    def _build_model(self):
+        return _TransformerNet(
+            self.n_features, self.hidden,
+            n_heads=self.n_heads, n_layers=self.n_layers,
+        ).net

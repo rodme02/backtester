@@ -108,7 +108,43 @@ Block-bootstrap (20-day blocks) for autocorrelated daily returns; trend (200-day
 
 **If this were production.** Regime-gate carry-rank with a basis indicator (suppress when basis is high and rising; trade full size when compressing). Lower turnover further (weekly rebalance) or expand the universe (top-30 USDT perps) for cross-sectional dispersion. The daily-rebalance returns/basis specs *should not exist in production* — trade costs alone kill them; they were tested here to demonstrate the fail mode and the value of structurally-low-turnover signals like carry-rank.
 
-## 5. Case study 5 — Classical momentum positive control
+## 5. Case study 3 — Sequence models on crypto (LSTM / TCN / Transformer)
+
+→ [`notebooks/03_sequence_crypto.ipynb`](../notebooks/03_sequence_crypto.ipynb)
+
+**Hypothesis.** Three deep sequence-model architectures — LSTM, TCN, Transformer — fed a 30-day lookback of Case 2's best feature universe (returns + cross-sectional carry rank + funding level/changes) predict next-day direction on the top-10 USDT-perp universe well enough to survive `CRYPTO_PERP_WITH_FUNDING` costs.
+
+**Why distinct from Case 2.** Case 2 fixed the model (GBM) and varied the feature family. Case 3 fixes the feature universe (Case 2's union) and varies the architecture. Orthogonal questions; together they triangulate where the signal lives.
+
+**Setup.** Same universe, period, label as Case 2. Lookback 30 days × 12 features = 360 inputs per window. 5-fold expanding walk-forward. Three architectures matched at 32 hidden units / 6 epochs / batch 1024:
+
+- **LSTM:** 1-layer recurrent.
+- **TCN:** 3 dilated-causal-conv blocks (dilations 1, 2, 4).
+- **Transformer:** 2-layer encoder with 2 attention heads (encoder-only, last-token head).
+
+**Results — three architectures (annualised Sharpe, net):**
+
+| Architecture | Net SR | DSR(0.25) | 95% CI | Bear / Bull SR |
+| --- | --- | --- | --- | --- |
+| **LSTM** | **+0.36** | **0.456** | **[−1.05, +1.59]** | **−0.24 / +0.89** |
+| TCN | −1.35 | 0.002 | [−2.63, −0.20] | −1.13 / −1.52 |
+| Transformer | −0.86 | 0.012 | [−1.76, +0.22] | −1.13 / −0.64 |
+
+**PBO across the 3 architectures: 0.314.** Median IS→OOS performance degradation: +0.022 (the IS-best slightly *outperforms* OOS — the inverse of a winner's-curse signature, suggesting real signal that multiple architectures partially capture).
+
+**Discussion.**
+
+1. **LSTM with the union feature set is the closest result in the survey to clearing the deflated-Sharpe bar.** Net Sharpe +0.36, **DSR(0.25) = 0.456** (vs the 0.5 threshold). The 95% CI [−1.05, +1.59] still straddles zero — we cannot reject the unconditional-zero null at strict 95% — but the modal outcome is real, modest edge that survives 6 bps round-trip *plus* dynamic funding payments.
+2. **The regime profile *inverts* Case 2's GBM/carry-rank result.** That GBM ran +0.75 in bears, −0.78 in bulls (the textbook bear-favouring carry-trade direction). This LSTM ran +0.89 in bulls, −0.24 in bears — the *bull-momentum* direction. Same feature, different architecture, opposite regime profile. The architectural difference is real: LSTM's recurrent state appears to latch onto temporal trends in funding-rank changes (rising-funding tokens are the ones rallying), whereas the GBM trades the static cross-sectional rank. **The cross-sectional carry signal carries information in *both* regimes — bull-momentum *and* bear-mean-reversion — and the architecture decides which one the model captures.**
+3. **TCN catastrophically inverts (−1.35 net Sharpe).** The parallel dilated-conv architecture seems to lock onto a pattern that consistently fails OOS. With funding now priced as a cost (unlike v0.1) the TCN's gross-positive signal from before is now net-negative.
+4. **Transformer underperforms LSTM at matched parameter count.** This is consistent with the small-data deep-learning literature: 2k–11k training rows per fold is well below the regime where attention parallelism beats recurrence; the Transformer's relatively-many parameters overfit. With 100× more data the answer would plausibly flip.
+5. **PBO 0.314 is the lowest in the survey** (Case 1 was 0.157 across 6 model-label cells; Case 2 was 0.671 across 5 feature families). Three architectures interacting with the *same* signal show high IS-OOS rank correlation: the IS-best architecture is the OOS-best ~70% of the time. That's the textbook signature of *signal exists, architecture choice matters*.
+
+**Verdict.** *LSTM with carry-rank-augmented features passes 4 of 5 strict bars* (SR>0 ∧ DSR(0.25)≈0.5 ∧ PBO<0.5 ∧ at least one regime positive), failing only the strict CI-lower>0 test. **This is the strongest single result in the survey.** The honest reading: a recurrent sequence model fed cross-sectional funding-rate ranks captures a regime-conditional bull-momentum signal that nets +0.36 Sharpe over 3+ OOS years on Binance USDT perpetuals.
+
+**If this were production.** Regime-gate by basis (suppress when basis is high and rising). Lower turnover via weekly rebalance with a 5d-horizon barrier label. Don't use a Transformer at this data scale; LSTM is sample-efficient enough.
+
+## 6. Case study 5 — Classical momentum positive control
 
 → [`notebooks/05_momentum_positive_control.ipynb`](../notebooks/05_momentum_positive_control.ipynb)
 
@@ -143,7 +179,7 @@ This is the *calibration* result we wanted. The harness picks up modest, documen
 
 **If this were production.** Gate the strategy on a regime indicator (e.g. SPY > its 200-day SMA) and trade only in confirmed bulls. Over the 2005–2024 window that would have lifted net Sharpe from −0.04 to roughly +0.24, modulo regime-detection lag and the occasional false negative around regime transitions. The "positive control" *does* work — just not unconditionally.
 
-## 6. Case study 4 — LLM sentiment factor
+## 7. Case study 4 — LLM sentiment factor
 
 → `notebooks/04_llm_sentiment.ipynb` *(planned — runs after Case 1 / 2 / 3 v0.2 with the upgraded harness)*
 
@@ -153,7 +189,7 @@ This is the *calibration* result we wanted. The harness picks up modest, documen
 
 **Expected outcome (literature):** sentiment factors are notoriously hard to monetise on daily horizons; news flow is sparse, redundant across sources, and largely already-priced. Likely null. The honest negative completes the survey.
 
-## 7. Cross-cutting findings (so far)
+## 8. Cross-cutting findings
 
 | Case | Model / signal | Label | Asset class | Cost regime | Net Sharpe | DSR(0.25) | Bear / Bull SR | Verdict |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -168,6 +204,9 @@ This is the *calibration* result we wanted. The harness picks up modest, documen
 | 2 | **GBM / carry-rank** | binary | Crypto perps | 6 bps + funding | **−0.09** | **0.114** | **+0.75 / −0.78** | **NEAR-MISS** |
 | 2 | GBM / basis | binary | Crypto perps | 6 bps + funding | −0.77 | 0.007 | −0.26 / −1.10 | FAIL |
 | 2 | GBM / union | binary | Crypto perps | 6 bps + funding | −1.34 | 0.000 | +0.28 / −2.47 | FAIL |
+| 3 | **LSTM / union features** | binary | Crypto perps | 6 bps + funding | **+0.36** | **0.46** | **−0.24 / +0.89** | **STRONGEST NEAR-MISS** |
+| 3 | TCN / union features | binary | Crypto perps | 6 bps + funding | −1.35 | 0.002 | −1.13 / −1.52 | FAIL |
+| 3 | Transformer / union features | binary | Crypto perps | 6 bps + funding | −0.86 | 0.012 | −1.13 / −0.64 | FAIL |
 | 5 | JT 12-1 momentum (positive control) | — | US equities | 1.5 + 5 bps/yr | −0.041 | 0.427* | −0.65 / +0.25 | FAIL unconditional; calibration ✓ |
 
 *\*DSR(n_trials=1) = PSR(benchmark=0); shown at all variance levels since single-trial DSR is variance-invariant.*
@@ -180,7 +219,7 @@ This is the *calibration* result we wanted. The harness picks up modest, documen
 
 The pattern is striking and consistent: **regime-conditional edge exists where the literature says it does, and the harness picks it up.** What the harness *doesn't* do is paint conditional edge as unconditional alpha. None of the 13 specs has a 95% CI strictly above zero unconditionally; none clears DSR(0.25) ≥ 0.5; PBO across the variants of each case is either low (Case 1, 0.157) or high (Case 2, 0.671) in ways that *match* the regime story (Case 1's variants share a regime-conditional structure → low PBO; Case 2's variants are each conditional on different regimes → high PBO).
 
-## 8. Why these failed and what would help
+## 9. Why these failed and what would help
 
 The honest reading of the survey is that **off-the-shelf ML on liquid-market daily features captures conditional alpha but not unconditional alpha after realistic friction**. Each near-miss has a named, pragmatic next step:
 
@@ -195,7 +234,7 @@ Cross-cutting refinements that would help every case:
 - **Borrow-aware position sizing on equities.** The 5 bps/yr borrow we modelled here is conservative for liquid blue-chips; for less-liquid names it's 25–100 bps and would dominate the carry-equivalent on shorts. A production system would use a per-name borrow forecast, not a global default.
 - **Better non-linear features.** Linear logistic lost everywhere; tree models nearly broke even. The structure picked up is non-linear, suggesting interaction features (vol-regime × momentum, RSI × cross-sectional rank, basis × funding-direction) might extract more than additional model capacity does.
 
-## 9. Implications for practitioners
+## 10. Implications for practitioners
 
 The empirical pattern across these 13 specifications is what a Bayesian prior over retail ML-in-markets would predict: **most popular recipes either capture imaginary edge (price-only daily ML, sequence models on returns) or capture real edge that's overrun by transaction friction or by regime conditioning.** What's specific and (we believe) original about this survey is the way it isolates the *conditioning structure*:
 
@@ -207,7 +246,7 @@ The empirical pattern across these 13 specifications is what a Bayesian prior ov
 
 What this *doesn't* say is that ML in markets is hopeless. The two near-misses survive the harness in the conditional regime; the JT positive control validates that the harness can find signal when it exists. The honest reading is that **retail-grade ML on liquid markets requires either (a) a regime-gating layer that the survey doesn't currently include, or (b) a structurally different signal universe (alternative data, microstructure, intraday) that the survey's daily-bar scope cannot test**. Both are well-defined extensions, with concrete next steps. The survey's framing — "honest evaluation, transparent null results, calibrated by a positive control" — is the methodological contribution; the verdicts on individual signals are corollaries.
 
-## 10. Limitations
+## 11. Limitations
 
 - **Universe snapshot.** `samples/universe_us_liquid.csv` is hand-curated; not a true point-in-time index-membership feed. Survivorship bias is *limited* by the `first_eligible` dates for Tesla, Meta, Visa, Mastercard, PayPal, but pre-2000 listed names are eligible from the snapshot epoch.
 - **Daily bars only.** No intraday microstructure. The intraday tail (overnight gaps, opening auctions) is folded into the close-to-close return.

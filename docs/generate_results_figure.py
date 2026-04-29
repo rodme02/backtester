@@ -37,11 +37,15 @@ ROWS = [
     ("Case 2 — carry-rank",               -0.09, -1.45,  1.10, "crypto", True),
     ("Case 2 — basis",                    -0.77, -1.86,  0.39, "crypto", False),
     ("Case 2 — union",                    -1.34, -2.50,  0.03, "crypto", False),
+    # Case 3 — sequence models on crypto
+    ("Case 3 — LSTM (carry+returns)",      0.36, -1.05,  1.59, "crypto-seq", True),
+    ("Case 3 — TCN (carry+returns)",      -1.35, -2.63, -0.20, "crypto-seq", False),
+    ("Case 3 — Transformer (carry+returns)", -0.86, -1.76, 0.22, "crypto-seq", False),
 ]
 
 
 def main() -> None:
-    fig, ax = plt.subplots(figsize=(11, 7.2))
+    fig, ax = plt.subplots(figsize=(11, 8.4))
     y_positions = np.arange(len(ROWS))
     labels = [r[0] for r in ROWS]
     point = np.array([r[1] for r in ROWS])
@@ -94,9 +98,9 @@ def main() -> None:
     )
 
     ax.set_title(
-        "ML Signals in Markets — survey results across 13 specifications\n"
-        "Two cases are near-misses with the same regime-asymmetry pattern. "
-        "None clears the unconditional bar.",
+        "ML Signals in Markets — survey results across 16 specifications\n"
+        "Three cases are near-misses with regime-conditional edge. "
+        "LSTM/carry+returns is closest to passing the unconditional bar.",
         fontsize=12, loc="left", pad=14,
     )
 

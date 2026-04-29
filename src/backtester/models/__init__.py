@@ -17,7 +17,12 @@ from .random_forest import RandomForest
 
 def _import_sequence():
     try:
-        from .sequence import LSTMClassifier, TCNClassifier, stack_sequences
+        from .sequence import (
+            LSTMClassifier,
+            TCNClassifier,
+            TransformerClassifier,
+            stack_sequences,
+        )
     except ImportError:  # torch not installed
         msg = "sequence models require torch; install with: pip install -e '.[ml]'"
 
@@ -25,15 +30,15 @@ def _import_sequence():
             def __init__(self, *args, **kwargs):
                 raise ImportError(msg)
 
-            def __call__(self, *args, **kwargs):  # called when stack_sequences is invoked
+            def __call__(self, *args, **kwargs):
                 raise ImportError(msg)
 
         sentinel = _Missing  # type: ignore[assignment]
-        return sentinel, sentinel, sentinel
-    return LSTMClassifier, TCNClassifier, stack_sequences
+        return sentinel, sentinel, sentinel, sentinel
+    return LSTMClassifier, TCNClassifier, TransformerClassifier, stack_sequences
 
 
-LSTMClassifier, TCNClassifier, stack_sequences = _import_sequence()
+LSTMClassifier, TCNClassifier, TransformerClassifier, stack_sequences = _import_sequence()
 
 __all__ = [
     "GBMClassifier",
@@ -41,5 +46,6 @@ __all__ = [
     "LogisticBaseline",
     "RandomForest",
     "TCNClassifier",
+    "TransformerClassifier",
     "stack_sequences",
 ]

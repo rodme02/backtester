@@ -45,7 +45,7 @@ Each case reports identical metrics for direct comparison. The cross-cutting wri
 
 ## Status (current verdicts at v0.2 harness)
 
-13 specifications across two asset classes, three model families, three label types. Two cases are **NEAR-MISSes** with the same underlying regime-asymmetry pattern.
+16 specifications across two asset classes, six model families, three label types. **Three cases are NEAR-MISSes**, with the LSTM/carry-rank cell coming closest to passing the unconditional bar (DSR(0.25) ≈ 0.46).
 
 | Case | Model / signal | Asset | Net SR | DSR(0.25) | Bear / Bull SR | Verdict |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -61,10 +61,12 @@ Each case reports identical metrics for direct comparison. The cross-cutting wri
 | ✅ 2 | **GBM / carry-rank** | Crypto perps | **−0.09** | **0.114** | **+0.75 / −0.78** | **NEAR-MISS** |
 | ✅ 2 | GBM / basis | Crypto perps | −0.77 | 0.007 | −0.26 / −1.10 | FAIL |
 | ✅ 2 | GBM / union | Crypto perps | −1.34 | 0.000 | +0.28 / −2.47 | FAIL |
-| ⏳ 3 | LSTM / TCN / Transformer on best crypto features | Crypto perps | — | — | — | next |
+| ✅ 3 | **LSTM / carry+returns** | Crypto perps | **+0.36** | **0.46** | **−0.24 / +0.89** | **NEAR-MISS** (closest to PASS) |
+| ✅ 3 | TCN / carry+returns | Crypto perps | −1.35 | 0.002 | −1.13 / −1.52 | FAIL |
+| ✅ 3 | Transformer / carry+returns | Crypto perps | −0.86 | 0.012 | −1.13 / −0.64 | FAIL |
 | ⏳ 4 | LLM-derived sentiment (Groq free) | Equities + crypto | — | — | — | next |
 
-**Headline finding (Section 7 of [the writeup](docs/writeup.md)):** the two near-misses share a *regime-asymmetry* pattern that the third case (Case 5 momentum) inverts. Conditional edge exists in named, predictable directions; the *un*conditional Sharpe averages to roughly zero by cancellation across regimes. None of the 13 specs has a 95% CI strictly above zero net of costs at this rebalance frequency.
+**Headline finding (Section 8 of [the writeup](docs/writeup.md)):** three near-misses each show real *regime-conditional* edge in named, predictable directions; the *un*conditional Sharpe averages near zero by cancellation across regimes. The LSTM/carry-rank cell is the closest to passing the unconditional bar (DSR(0.25) = 0.46 vs 0.5 threshold). None of the 16 specs has a 95% CI strictly above zero net of costs at the daily-rebalance frequency we tested.
 
 ## Quickstart
 
