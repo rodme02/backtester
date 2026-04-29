@@ -43,15 +43,28 @@ Each case study answers a distinct research question:
 
 Each case reports identical metrics for direct comparison. The cross-cutting writeup at [`docs/writeup.md`](docs/writeup.md) ties the survey together as a paper-lite (~4,000-word target).
 
-## Status (current verdicts)
+## Status (current verdicts at v0.2 harness)
 
-| Case | Model / signal | Asset | Net Sharpe | Deflated SR | Verdict |
-| --- | --- | --- | --- | --- | --- |
-| ✅ 1 | HistGradientBoosting | US equities | −0.428 | 0.000 | **FAIL** |
-| ✅ 2 | LSTM (returns + funding) | Crypto perps | −1.348 | 0.000 | **FAIL** |
-| ✅ 2 | TCN (returns + funding) | Crypto perps | +0.138 | 0.001 | **FAIL** |
+13 specifications across two asset classes, three model families, three label types. Two cases are **NEAR-MISSes** with the same underlying regime-asymmetry pattern.
 
-Cases 1 and 2 will be re-executed once the v0.2 harness (CPCV + triple-barrier + sample weights + funding cost) is wired into the notebooks. Cases 3, 4, 5 follow.
+| Case | Model / signal | Asset | Net SR | DSR(0.25) | Bear / Bull SR | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| ✅ 5 | JT 12-1 momentum (positive control) | US equities | −0.04 | 0.43 | −0.65 / +0.25 | calibration ✓ |
+| ✅ 1 | logistic / binary | US equities | −0.62 | 0.000 | −0.29 / −0.73 | FAIL |
+| ✅ 1 | random forest / binary | US equities | −0.65 | 0.000 | +0.73 / −1.08 | FAIL |
+| ✅ 1 | GBM / binary | US equities | −0.14 | 0.004 | +0.70 / −0.37 | FAIL |
+| ✅ 1 | logistic / triple-barrier | US equities | −0.44 | 0.000 | −0.16 / −0.52 | FAIL |
+| ✅ 1 | **random forest / triple-barrier** | US equities | **+0.36** | **0.16** | **+2.38 / −0.24** | **NEAR-MISS** |
+| ✅ 1 | GBM / triple-barrier | US equities | +0.05 | 0.023 | +1.66 / −0.40 | FAIL |
+| ✅ 2 | GBM / returns-only | Crypto perps | −0.64 | 0.013 | −0.22 / −0.94 | FAIL |
+| ✅ 2 | GBM / funding-level | Crypto perps | −0.75 | 0.009 | −0.72 / −0.78 | FAIL |
+| ✅ 2 | **GBM / carry-rank** | Crypto perps | **−0.09** | **0.114** | **+0.75 / −0.78** | **NEAR-MISS** |
+| ✅ 2 | GBM / basis | Crypto perps | −0.77 | 0.007 | −0.26 / −1.10 | FAIL |
+| ✅ 2 | GBM / union | Crypto perps | −1.34 | 0.000 | +0.28 / −2.47 | FAIL |
+| ⏳ 3 | LSTM / TCN / Transformer on best crypto features | Crypto perps | — | — | — | next |
+| ⏳ 4 | LLM-derived sentiment (Groq free) | Equities + crypto | — | — | — | next |
+
+**Headline finding (Section 7 of [the writeup](docs/writeup.md)):** the two near-misses share a *regime-asymmetry* pattern that the third case (Case 5 momentum) inverts. Conditional edge exists in named, predictable directions; the *un*conditional Sharpe averages to roughly zero by cancellation across regimes. None of the 13 specs has a 95% CI strictly above zero net of costs at this rebalance frequency.
 
 ## Quickstart
 

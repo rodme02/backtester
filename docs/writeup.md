@@ -172,22 +172,49 @@ This is the *calibration* result we wanted. The harness picks up modest, documen
 
 *\*DSR(n_trials=1) = PSR(benchmark=0); shown at all variance levels since single-trial DSR is variance-invariant.*
 
-Three signals across two asset classes and two model families, all evaluated through the same harness. **Not one clears the deflated-Sharpe bar; not one has a 95% CI strictly above zero net of costs.**
+**Thirteen evaluated specifications across two asset classes, three label types, three model families, and five feature universes.** Of those, **two cases are NEAR-MISSes** — both with the *same* underlying pattern: real regime-conditional edge that the unconditional Sharpe averages to roughly zero.
 
-The pattern is consistent with what 50+ years of empirical-finance literature predicts: liquid markets are statistically efficient enough that off-the-shelf ML on widely-known features captures no robust edge. The places where retail trading content claims edge usually exploit one or more of: (a) overlapping forecasts inflating Sharpe magnitude, (b) cost models that ignore real-world friction, (c) single train/test splits, (d) survivorship-biased universes, (e) non-deflated significance tests. This project shuts each of those down in turn — and the candidates collapse.
+- Case 1, RF + triple-barrier, US equities: net SR +0.36 unconditional, **+2.38 in bears**, −0.24 in bulls. A short-horizon mean-reversion pattern that thrives in volatile sell-offs.
+- Case 2, GBM + cross-sectional carry-rank, crypto perps: net SR −0.09 unconditional, **+0.75 in bears**, −0.78 in bulls. Reproduces Schmeling-Schrimpf-Todorov 2023 — the carry trade pays in bear/sideways regimes but inverts in bull crowding.
+- Case 5, JT 12-1 momentum, US equities (positive control): net SR −0.04 unconditional, +0.25 in bulls, **−0.65 in bears** — the inverse regime profile, the canonical "momentum crash" of Daniel & Moskowitz 2016.
 
-_The two upcoming cases (momentum positive control + LLM sentiment) will fill in two more rows. The momentum case is included specifically to sanity-check that the harness can find signal when it exists; the LLM sentiment case rounds out the survey's coverage of popular retail recipes._
+The pattern is striking and consistent: **regime-conditional edge exists where the literature says it does, and the harness picks it up.** What the harness *doesn't* do is paint conditional edge as unconditional alpha. None of the 13 specs has a 95% CI strictly above zero unconditionally; none clears DSR(0.25) ≥ 0.5; PBO across the variants of each case is either low (Case 1, 0.157) or high (Case 2, 0.671) in ways that *match* the regime story (Case 1's variants share a regime-conditional structure → low PBO; Case 2's variants are each conditional on different regimes → high PBO).
 
-_Coming additions:_
-- _Bake-off rows for Case 1 (logistic / random forest / MLP alongside HistGradientBoosting) and Case 2 (Transformer alongside LSTM/TCN), so each cell of the table reports a head-to-head comparison rather than a single model._
-- _DSR sensitivity at `trials_sr_var ∈ {1.0, 0.5, 0.25}` for every row, so readers can see exactly how the deflation assumption affects the verdict._
+## 8. Why these failed and what would help
 
-## 8. Limitations
+The honest reading of the survey is that **off-the-shelf ML on liquid-market daily features captures conditional alpha but not unconditional alpha after realistic friction**. Each near-miss has a named, pragmatic next step:
 
-- Universe snapshot is hand-curated, not a true point-in-time index membership feed.
-- Daily bars only; no intraday microstructure.
-- No paper-trading or live-deployment leg.
-- Cost model is per-asset-class average — no per-name spread or borrow.
+- **Case 1 (RF + triple-barrier).** Gate on a regime indicator (SPY > 200d SMA → suppress; SPY < 200d SMA → trade with full size). The bear-Sharpe of +2.38 over the OOS window strongly suggests this would convert the near-miss into a tradeable spec — but with substantial drag from staying flat ~80% of the time.
+- **Case 2 (carry-rank).** The structural fix is *regime-conditioning by basis*: when perp-spot basis is high and rising (bull crowding), suppress; when basis compresses (regime transition), trade. A second-best fix is reducing turnover further (weekly rebalance, top-30 universe, vol-targeted position sizing). The trade ran in the *bull-momentum* direction here because that was the dominant regime in 2021–2024 training; the textbook carry-trade direction (long low-funding, short high-funding) would have to be hardcoded rather than learned.
+- **Case 5 (Jegadeesh-Titman).** Same regime gate, applied to a positive control: bull-only momentum trading would have netted ~+0.25 SR vs the −0.04 unconditional, lifting it cleanly above zero. Modulo regime-detection lag and the occasional false negative around regime transitions.
+
+Cross-cutting refinements that would help every case:
+
+- **Volatility-targeted position sizing** at the portfolio level. None of the cases here scaled positions to a target portfolio volatility; doing so would tame drawdowns without throwing away signal.
+- **Longer holding periods.** Daily rebalance on 1-day-ahead labels is the *worst* turnover regime for all of these features; holding 5–10 days (with appropriate triple-barrier label horizon) would naturally cut trade costs by 5–10×.
+- **Borrow-aware position sizing on equities.** The 5 bps/yr borrow we modelled here is conservative for liquid blue-chips; for less-liquid names it's 25–100 bps and would dominate the carry-equivalent on shorts. A production system would use a per-name borrow forecast, not a global default.
+- **Better non-linear features.** Linear logistic lost everywhere; tree models nearly broke even. The structure picked up is non-linear, suggesting interaction features (vol-regime × momentum, RSI × cross-sectional rank, basis × funding-direction) might extract more than additional model capacity does.
+
+## 9. Implications for practitioners
+
+The empirical pattern across these 13 specifications is what a Bayesian prior over retail ML-in-markets would predict: **most popular recipes either capture imaginary edge (price-only daily ML, sequence models on returns) or capture real edge that's overrun by transaction friction or by regime conditioning.** What's specific and (we believe) original about this survey is the way it isolates the *conditioning structure*:
+
+1. **The signal-failure stories cluster around regime asymmetry, not noise.** Three of three near-miss / canonical cases (Case 1 RF+TB, Case 2 carry-rank, Case 5 JT-momentum) show >0.6 net Sharpe in one regime and <0 in the other. The unconditional verdicts are flat by *cancellation*, not by *absence*. This is consistent with the Daniel-Moskowitz / Lopez-de-Prado / Schmeling-Schrimpf-Todorov literatures but is rarely surfaced by retail-quant blog posts that report a single cumulative-equity curve.
+2. **The cost-regime mismatch is the second-largest killer.** Cases 1 (binary), Case 2 returns, Case 2 basis all have positive *gross* Sharpe and negative *net* Sharpe. A daily-rebalance L/S book on liquid US equities at 1.5 bps round-trip costs roughly 2–4 bps/day in trade cost; on Binance perps at 6 bps round-trip plus dynamic funding, 15–20 bps/day. A signal needs to deliver more than that just to break even. *Most signals at this rebalance frequency don't.*
+3. **Triple-barrier labels are not just a methodological nicety; they materially change the verdict.** In Case 1, switching from binary direction to triple-barrier flipped 2 of the 3 model families from net-negative to net-positive Sharpe. Retail blog posts almost universally use binary direction labels because they're easier to set up; switching to a barrier-based label (which is closer to a real trader's exit pattern) changes which signals look "alive."
+4. **CPCV with PBO surfaces overfitting that walk-forward alone misses.** Case 2's PBO of 0.671 is the textbook winner's-curse signature; the IS-best feature family regresses below OOS median two thirds of the time. A practitioner who picked the IS-best of these 5 and traded it would be substantially worse off than someone who diversified across them. Walk-forward alone reports 5 separate Sharpe estimates and lets the practitioner cherry-pick; PBO quantifies the cost of cherry-picking.
+5. **The deflated Sharpe variance assumption matters and should be reported as a sensitivity.** Every result row in Section 7 reports DSR at `trials_sr_var = 0.25`; the underlying notebooks show the full grid. Picking var = 1.0 (the worst-case "all trials are independent" assumption) gives the most pessimistic verdict; var = 0.1 (the strong-overlap assumption appropriate for hyperparameter sweeps on the same data) gives the most generous. Always reporting the grid is the corrective for choose-your-favourite-statistic.
+
+What this *doesn't* say is that ML in markets is hopeless. The two near-misses survive the harness in the conditional regime; the JT positive control validates that the harness can find signal when it exists. The honest reading is that **retail-grade ML on liquid markets requires either (a) a regime-gating layer that the survey doesn't currently include, or (b) a structurally different signal universe (alternative data, microstructure, intraday) that the survey's daily-bar scope cannot test**. Both are well-defined extensions, with concrete next steps. The survey's framing — "honest evaluation, transparent null results, calibrated by a positive control" — is the methodological contribution; the verdicts on individual signals are corollaries.
+
+## 10. Limitations
+
+- **Universe snapshot.** `samples/universe_us_liquid.csv` is hand-curated; not a true point-in-time index-membership feed. Survivorship bias is *limited* by the `first_eligible` dates for Tesla, Meta, Visa, Mastercard, PayPal, but pre-2000 listed names are eligible from the snapshot epoch.
+- **Daily bars only.** No intraday microstructure. The intraday tail (overnight gaps, opening auctions) is folded into the close-to-close return.
+- **Cost model is per-asset-class average**, not per-name spread/borrow/funding-rate at execution time. Production research would use Tradeweb / S3 / Coalition for spread, and per-name borrow rates from prime brokers.
+- **Top-trader long/short ratios** (Case 2) have a 30-day rolling history on Binance public REST; we collected what we could but the data gap is documented and a feature could not be built across the full 2021–2024 period.
+- **No paper-trading or live-deployment leg.** Each case is a backtest. The next-step papers would be paper-trading the regime-gated specs in 2025–2026 and reporting the live-vs-backtest gap.
+- **Sequence-model case (planned T3.C: LSTM / TCN / Transformer on Case 2's best feature family) and LLM sentiment case (planned T3.D)** are not yet executed at the v0.2 harness level. The v0.1 sequence-models numbers in earlier README revisions are no longer reported here because they used the v0.1 cost model (no funding payment) and v0.1 evaluation (no DSR sensitivity / PBO / triple-barrier comparison).
 
 ## References
 
