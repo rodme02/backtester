@@ -116,13 +116,18 @@ def deflated_sharpe_ratio(
     if trials_sr_var <= 0:
         raise ValueError("trials_sr_var must be > 0")
 
-    # Expected max of N i.i.d. standard normals (Gumbel approximation).
-    euler_mascheroni = 0.5772156649015329
-    e_max = (
-        (1.0 - euler_mascheroni) * stats.norm.ppf(1.0 - 1.0 / n_trials)
-        + euler_mascheroni * stats.norm.ppf(1.0 - 1.0 / (n_trials * math.e))
-    )
-    expected_max_sr_annual = math.sqrt(trials_sr_var) * float(e_max)
+    if n_trials == 1:
+        # With a single trial there's no multiple-comparison inflation;
+        # DSR collapses to PSR with the natural zero benchmark.
+        expected_max_sr_annual = 0.0
+    else:
+        # Expected max of N i.i.d. standard normals (Gumbel approximation).
+        euler_mascheroni = 0.5772156649015329
+        e_max = (
+            (1.0 - euler_mascheroni) * stats.norm.ppf(1.0 - 1.0 / n_trials)
+            + euler_mascheroni * stats.norm.ppf(1.0 - 1.0 / (n_trials * math.e))
+        )
+        expected_max_sr_annual = math.sqrt(trials_sr_var) * float(e_max)
 
     return probabilistic_sharpe_ratio(
         returns,
