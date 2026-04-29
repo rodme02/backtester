@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from backtester.eval.costs import BPS, EQUITIES_LIQUID
-from backtester.strategy import (
+from backtester.portfolio import (
     apply_book_costs,
     daily_returns_from_book,
     long_short_quantile_weights,

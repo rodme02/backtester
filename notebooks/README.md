@@ -1,27 +1,44 @@
 # Notebooks
 
-Each notebook is a self-contained case study evaluating one ML-driven trading signal through the harness in `src/backtester/eval/`.
+Each notebook is a self-contained case study evaluating one or more ML-driven trading signals through the shared harness in `src/backtester/eval/`. Together they form a small empirical survey across model families and asset classes.
 
-| Notebook | Status | Signal | Asset class |
-| --- | --- | --- | --- |
-| `01_gbm_us_equities.ipynb` | ✅ executed | Histogram-GBM direction classifier | US equities |
-| `02_sequence_models_crypto.ipynb` | ✅ executed | LSTM + TCN side-by-side | Binance USDT perps |
-| `03_llm_sentiment.ipynb` | ⏳ week 4 | LLM-derived sentiment factor | News-covered tickers |
+| Notebook | Status | Signals compared | Asset class | Cost regime |
+| --- | --- | --- | --- | --- |
+| `01_gbm_us_equities.ipynb` | 🟡 GBM done; bake-off in progress | Logistic regression · Random forest · HistGradientBoosting · (optional) MLP | US equities | `EQUITIES_LIQUID` (1.5 bps) |
+| `02_sequence_models_crypto.ipynb` | 🟡 LSTM/TCN done; Transformer in progress | LSTM · TCN · Transformer | Binance USDT perps | `CRYPTO_PERP` (6 bps) |
+| `03_momentum_positive_control.ipynb` | ⏳ planned | Jegadeesh-Titman 12-1 momentum factor | US equities | `EQUITIES_LIQUID` |
+| `04_llm_sentiment.ipynb` | ⏳ planned | LLM-derived sentiment factor (Groq free tier) | News-covered tickers | `EQUITIES_LIQUID` |
+
+The momentum case (notebook 03) is a **positive control** — a classical signal with a documented historical edge — included to prove the harness can identify real signal when it exists.
 
 ## Running locally
 
 ```bash
-pip install -e ".[dev,notebooks,ml]"  # ml extra adds torch (CPU) for LSTM/TCN
-cp .env.example .env  # then add ALPHA_VANTAGE_API_KEY / FRED_API_KEY
+pip install -e ".[dev,notebooks,ml,llm]"  # ml = torch; llm = groq + feedparser
+cp .env.example .env
+# Set FRED_API_KEY (free, https://fred.stlouisfed.org/) and GROQ_API_KEY (free, https://groq.com/)
+# Optional: OLLAMA_HOST for local-LLM fallback
 jupyter notebook notebooks/01_gbm_us_equities.ipynb
 ```
 
-`data_cache/` (gitignored) holds yfinance / FRED / Binance pulls keyed by date — same-day re-runs are offline. yfinance times out frequently; the loader retries with backoff, but you may need to re-execute the data-load cell to fill gaps.
+`data_cache/` (gitignored) holds yfinance / FRED / Binance / news / LLM pulls keyed by date — same-day re-runs are offline.
+
+For quick smoke tests without live API calls:
+
+```bash
+BACKTESTER_FIXTURE_MODE=1 jupyter nbconvert --to notebook --execute notebooks/01_gbm_us_equities.ipynb
+```
+
+This is what CI uses to validate the notebooks on every push.
 
 ## Reading the verdicts
 
-- **Deflated Sharpe Ratio (DSR).** Probability the true Sharpe exceeds the *expected best of `n_trials`* candidates. We use `n_trials=20` by default. **DSR ≥ 0.95** = the strategy clears the multiple-trial significance bar. Anything less is "we cannot reject the null."
-- **Bootstrap 95% CI on Sharpe.** A range produced by 20-day-block resampling. **Strictly above zero** = the point estimate isn't a fluke.
-- **Per-regime breakdown.** A signal that only earns in bulls or only in low-vol windows hasn't generalised.
+Each notebook reports the same metrics for every model:
 
-A negative result is still a result. Most ML signals don't survive honest evaluation, and that finding *is* the contribution.
+- **Annualised Sharpe — gross and net of costs.** The cost gap usually tells the story.
+- **Deflated Sharpe Ratio (DSR), with sensitivity.** Probability the true Sharpe exceeds the *expected best of `n_trials`* candidates, reported across `trials_sr_var ∈ {1.0, 0.5, 0.25}` to be transparent about the multiple-trial assumption. **DSR ≥ 0.95** = clears the bar. Anything less means we cannot reject the null.
+- **Bootstrap 95% CI on Sharpe** (20-day block resample). **Strictly above zero** = the point estimate isn't a fluke.
+- **Per-regime breakdown** (bull/bear via 200d SMA on the benchmark). A signal that only earns in one regime hasn't generalised.
+- **Pragmatic discussion + "if this were production"** — what would we change to give this signal a fair shot in real trading?
+
+A negative result is still a result. Most ML signals fail under honest evaluation, and that finding *is* the contribution. The positive-control case in notebook 03 demonstrates the methodology can identify real (modest, well-documented) edge when it exists.

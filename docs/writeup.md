@@ -1,7 +1,7 @@
 # ML Signals in Markets — An Honest Evaluation
 
-> **Status:** scaffolding. Filled in as the case studies finish.
-> Target: ≥3000 words, written like a paper-lite, links to each notebook.
+> **Status:** ~3,500-word target. Two case studies executed and reported (GBM equities; LSTM/TCN crypto). Bake-offs (linear/RF/MLP on equities; Transformer on crypto) and two new cases (Jegadeesh-Titman positive control; LLM sentiment factor with free Groq API) coming next.
+> Style: paper-lite, citations inline, every claim either backed by numbers from the notebooks or explicitly flagged as "expected" / "literature".
 
 ## 1. Motivation
 
@@ -11,7 +11,7 @@ Most "I trained ML on stocks" projects share three sins:
 2. **Single-split validation.** One train/test split, whatever Sharpe falls out, claim victory.
 3. **Cosmetic costs.** Ignore commissions, half-spreads, market impact — the things that turn paper alpha into nothing.
 
-This project is the corrective: three ML-driven signals (gradient-boosted classifier, sequence model, LLM sentiment factor) put through the same honest evaluation harness.
+This project is the corrective: a small empirical survey of major ML model families (linear / tree ensembles / sequence networks / LLM-derived sentiment / classical factor) applied to US equities and Binance crypto perpetuals, all evaluated through the same purged-walk-forward / deflated-Sharpe / realistic-cost harness. Each case reports identical metrics for direct comparison; a positive-control case (Jegadeesh-Titman 12-1 momentum) sanity-checks that the harness can identify real signal when it exists.
 
 ## 2. Methodology
 
@@ -98,11 +98,29 @@ Block-bootstrap (20-day blocks) for autocorrelated daily returns; trend (200-day
 - **TCN > LSTM** by a wide margin in *gross* terms, which says something real about the architectures even if neither wins after costs. The TCN's deterministic dilated kernels seem to handle the highly non-stationary crypto signal better than the LSTM's recurrent dynamics.
 - **The cost gap is the story.** Equity case 1 paid 1.5 bps and lost. Crypto case 2 pays 6 bps. Even when there's a hint of gross signal (TCN), 4× the friction kills it. **This is the central crypto-trading reality that retail content elides:** funding + spread + commission on USDT perps eats anything short of a strong, low-turnover signal.
 
-## 5. Case study 3 — LLM sentiment factor
+## 5. Case study 3 — Classical momentum positive control
 
-→ `notebooks/03_llm_sentiment.ipynb` *(week 4)*
+→ `notebooks/03_momentum_positive_control.ipynb` *(planned)*
 
-## 6. Cross-cutting findings (so far)
+**Hypothesis.** The Jegadeesh & Titman (1993) 12-month-minus-1-month cross-sectional momentum factor — a canonical published edge that historically earned ~3-5% net annualised in the 1990s and has degraded since 2000 — survives the same harness and demonstrates that the methodology can identify real (modest, well-documented) edge when it exists.
+
+**Why this case is critical to the survey.** A reader of cases 1-2 alone might worry the harness is calibrated to reject everything. This case is the falsifier: a documented signal *should* clear at least the bootstrap-CI-above-zero bar, and may or may not clear the deflated-Sharpe threshold depending on how aggressive the cost regime is. Either way the result is informative.
+
+**Setup.** Same universe, walk-forward folds, costs as Case 1. Signal = standardised cross-sectional rank of the trailing 12-month return, skipping the most recent month. Daily-rebalanced top/bottom-quintile long/short portfolio.
+
+**Expected outcome (literature):** modestly positive gross Sharpe (~0.4-0.6); net Sharpe sensitive to rebalance frequency. If we get a clean positive result, the harness is validated. If we don't, that's a real finding about how cost-adjusted post-2000 momentum looks.
+
+## 6. Case study 4 — LLM sentiment factor
+
+→ `notebooks/04_llm_sentiment.ipynb` *(planned)*
+
+**Hypothesis.** A daily sentiment factor derived from per-ticker news headlines, scored by a free-tier LLM (Groq's Llama 3.3 70B), predicts next-day return sign well enough either as a standalone factor or as an added feature to Case 1's GBM.
+
+**Setup.** News pulled from per-ticker Yahoo Finance RSS (free, no key, cached). Each headline scored `[-1, +1]` by the LLM and cached per `(ticker, headline_hash, model_id)` so reruns are free and deterministic. Daily aggregation = mean over trailing N days, lagged 1 day to prevent same-day leakage. Same harness as Case 1.
+
+**Expected outcome (literature):** sentiment factors are notoriously hard to monetise on daily horizons; news flow is sparse, redundant across sources, and largely already-priced. Likely null. The honest negative completes the survey.
+
+## 7. Cross-cutting findings (so far)
 
 | Case | Model | Asset class | Cost regime | Net Sharpe | Deflated SR | Verdict |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -114,9 +132,13 @@ Three signals across two asset classes and two model families, all evaluated thr
 
 The pattern is consistent with what 50+ years of empirical-finance literature predicts: liquid markets are statistically efficient enough that off-the-shelf ML on widely-known features captures no robust edge. The places where retail trading content claims edge usually exploit one or more of: (a) overlapping forecasts inflating Sharpe magnitude, (b) cost models that ignore real-world friction, (c) single train/test splits, (d) survivorship-biased universes, (e) non-deflated significance tests. This project shuts each of those down in turn — and the candidates collapse.
 
-_Case study 3 (LLM sentiment factor) follows. The expectation now is the same null result; the value is in shutting down one more popular hypothesis under matched conditions._
+_The two upcoming cases (momentum positive control + LLM sentiment) will fill in two more rows. The momentum case is included specifically to sanity-check that the harness can find signal when it exists; the LLM sentiment case rounds out the survey's coverage of popular retail recipes._
 
-## 7. Limitations
+_Coming additions:_
+- _Bake-off rows for Case 1 (logistic / random forest / MLP alongside HistGradientBoosting) and Case 2 (Transformer alongside LSTM/TCN), so each cell of the table reports a head-to-head comparison rather than a single model._
+- _DSR sensitivity at `trials_sr_var ∈ {1.0, 0.5, 0.25}` for every row, so readers can see exactly how the deflation assumption affects the verdict._
+
+## 8. Limitations
 
 - Universe snapshot is hand-curated, not a true point-in-time index membership feed.
 - Daily bars only; no intraday microstructure.
@@ -127,4 +149,7 @@ _Case study 3 (LLM sentiment factor) follows. The expectation now is the same nu
 
 - Bailey, D.H. & López de Prado, M. (2012). *The Sharpe Ratio Efficient Frontier.* Journal of Risk.
 - Bailey, D.H. & López de Prado, M. (2014). *The Deflated Sharpe Ratio: Correcting for Selection Bias, Backtest Overfitting, and Non-Normality.* Journal of Portfolio Management.
+- Fama, E.F. & French, K.R. (1993). *Common risk factors in the returns on stocks and bonds.* Journal of Financial Economics.
+- Jegadeesh, N. & Titman, S. (1993). *Returns to Buying Winners and Selling Losers.* Journal of Finance.
 - López de Prado, M. (2018). *Advances in Financial Machine Learning.* Wiley.
+- Politis, D.N. & Romano, J.P. (1994). *The Stationary Bootstrap.* Journal of the American Statistical Association.

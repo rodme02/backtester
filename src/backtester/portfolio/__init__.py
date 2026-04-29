@@ -1,8 +1,8 @@
 """Portfolio construction helpers used by the case-study notebooks.
 
-These are kept separate from the ``strategies/`` (backtrader) package
-on purpose: the ML-research case studies operate on per-(date, ticker)
-prediction series, not on bar-by-bar event streams.
+The case studies operate on per-(date, ticker) prediction series, not
+on bar-by-bar event streams: model probabilities → quantile weights →
+daily returns → cost adjustment → eval-harness inputs.
 """
 
 from .cross_sectional import (

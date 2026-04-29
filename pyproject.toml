@@ -4,29 +4,42 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "backtester"
-version = "0.1.0"
-description = "Event-driven backtesting framework with a Streamlit dashboard."
+version = "0.2.0"
+description = "In-depth empirical study of ML techniques applied to US equities and crypto: combinatorial purged walk-forward CV, triple-barrier labels, deflated Sharpe with PBO, realistic costs (with borrow + funding), transparent results across linear/tree/sequence/LLM-sentiment model families."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
-keywords = ["backtesting", "trading", "quant", "backtrader", "streamlit"]
+keywords = [
+  "machine-learning",
+  "quant",
+  "trading",
+  "walk-forward-cv",
+  "combinatorial-purged-cv",
+  "deflated-sharpe",
+  "triple-barrier",
+  "pbo",
+  "honest-evaluation",
+  "empirical-study",
+]
 authors = [{ name = "Rodrigo Medeiros" }]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
   "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Office/Business :: Financial :: Investment",
+  "Topic :: Scientific/Engineering",
 ]
 dependencies = [
-  "backtrader==1.9.78.123",
   "pandas>=2.0,<3.0",
   "numpy>=1.26,<3.0",
   "scipy>=1.11,<2.0",
   "matplotlib>=3.8,<4.0",
-  "plotly>=5.20,<6.0",
-  "streamlit>=1.31,<2.0",
-  "alpha-vantage>=2.3,<3.0",
   "python-dotenv>=1.0,<2.0",
   "yfinance>=0.2.40,<1.0",
   "fredapi>=0.5,<1.0",
@@ -38,17 +51,20 @@ dependencies = [
 dev = [
   "pytest>=8.0,<9.0",
   "ruff>=0.4,<1.0",
+  "pre-commit>=3.7,<5.0",
 ]
 notebooks = [
   "jupyter>=1.0,<2.0",
   "ipykernel>=6.29,<7.0",
+  "nbconvert>=7.16,<8.0",
 ]
 ml = [
   "torch>=2.2,<3.0",
 ]
-
-[project.scripts]
-backtester = "backtester.cli:main"
+llm = [
+  "groq>=0.11,<1.0",
+  "feedparser>=6.0,<7.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
