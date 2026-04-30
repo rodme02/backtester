@@ -6,7 +6,7 @@ the README has *something* above the fold.
 
 Usage::
 
-    python docs/generate_hero_placeholder.py
+    python scripts/generate_hero_placeholder.py
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from pathlib import Path
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 
-OUT = Path(__file__).resolve().parent / "results.png"
+OUT = Path(__file__).resolve().parents[1] / "docs" / "results.png"
 
 
 def main() -> None:

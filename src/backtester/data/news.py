@@ -11,18 +11,15 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime, timezone
-from pathlib import Path
 
 import pandas as pd
 
+from ._cache import cache_path
 from ._fixture import fixture_mode_active, load_fixture
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-CACHE_DIR = REPO_ROOT / "data_cache" / "news"
 
-
-def _cache_path(symbol: str, today: date) -> Path:
-    return CACHE_DIR / f"{symbol.upper()}_{today.isoformat()}.json"
+def _cache_path(symbol: str, today: date):
+    return cache_path("news", symbol.upper(), today=today, suffix=".json")
 
 
 def _normalise(item: dict) -> dict:
@@ -64,7 +61,7 @@ def fetch_recent_news(
     Empty DataFrame on failure.
     """
     if fixture_mode_active():
-        df = load_fixture(f"news_{symbol.upper()}.csv")
+        df = load_fixture(f"news_{symbol.upper()}.csv", source="news")
         if df is not None:
             return df
 
@@ -87,8 +84,9 @@ def fetch_recent_news(
     items = [it for it in items if it["title"]]
 
     if cache:
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        _cache_path(symbol, today).write_text(json.dumps(items, indent=2))
+        path = _cache_path(symbol, today)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(items, indent=2))
     return _items_to_df(items)
 
 

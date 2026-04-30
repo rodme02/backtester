@@ -4,11 +4,11 @@ Each notebook is a self-contained case study evaluating one or more ML-driven tr
 
 | Notebook | Status | Question | Asset class | Cost regime |
 | --- | --- | --- | --- | --- |
-| `01_tabular_equities.ipynb` | 🟡 GBM done; bake-off in progress | Off-the-shelf tabular ML on equities — which family fails least? | US large-caps | `EQUITIES_LIQUID_WITH_BORROW` |
-| `02_crypto_signal_universe.ipynb` | 🟡 LSTM/TCN done; signal universe in progress | **Do funding-rate / basis / positioning signals carry tradeable edge?** | Binance USDT perps | `CRYPTO_PERP_WITH_FUNDING` |
-| `03_sequence_crypto.ipynb` | ⏳ planned | Sequence architectures (LSTM / TCN / Transformer) on the *best* crypto features | Binance USDT perps | `CRYPTO_PERP_WITH_FUNDING` |
-| `04_llm_sentiment.ipynb` | ⏳ planned | Does LLM-derived news sentiment add what price-only features miss? | Equities + crypto | matching per-asset |
-| `05_momentum_positive_control.ipynb` | ⏳ planned (runs **first** — calibrates the harness) | **Can the harness identify Jegadeesh-Titman 12-1 momentum?** | US large-caps | `EQUITIES_LIQUID_WITH_BORROW` |
+| `01_tabular_equities.ipynb` | ✅ done — RF/triple-barrier is the lone NEAR-MISS (DSR ≈ 0.16, +2.38 bear SR) | Off-the-shelf tabular ML on equities — which family fails least? | US large-caps | `EQUITIES_LIQUID_WITH_BORROW` |
+| `02_crypto_signal_universe.ipynb` | ✅ done — GBM/carry-rank is the NEAR-MISS (DSR ≈ 0.11, +0.75 bear SR) | **Do funding-rate / basis / positioning signals carry tradeable edge?** | Binance USDT perps | `CRYPTO_PERP_WITH_FUNDING` |
+| `03_sequence_crypto.ipynb` | ✅ done — LSTM/carry+returns is the closest to PASS (DSR ≈ 0.46, +0.36 net SR) | Sequence architectures (LSTM / TCN / Transformer) on the *best* crypto features | Binance USDT perps | `CRYPTO_PERP_WITH_FUNDING` |
+| `04_llm_sentiment.ipynb` | ✅ done — DATA-CONSTRAINED: free yfinance news is rolling ~24h, can't backtest multi-year | Does LLM-derived news sentiment add what price-only features miss? | Equities + crypto | matching per-asset |
+| `05_momentum_positive_control.ipynb` | ✅ done — JT 12-1 calibration ✓ (regime-conditional bull edge as expected) | **Can the harness identify Jegadeesh-Titman 12-1 momentum?** | US large-caps | `EQUITIES_LIQUID_WITH_BORROW` |
 
 Case 5 is a positive control: a classical signal with documented historical edge, run through the *exact same* harness as the other cases. If the harness rejects it the methodology is overcalibrated; if it identifies it, the methodology is trustworthy.
 

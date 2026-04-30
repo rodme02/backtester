@@ -10,18 +10,15 @@ from __future__ import annotations
 
 import time
 from datetime import date
-from pathlib import Path
 
 import pandas as pd
 
+from ._cache import cache_path
 from ._fixture import fixture_mode_active, load_fixture
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-CACHE_DIR = REPO_ROOT / "data_cache" / "yfinance"
 
-
-def _cache_path(symbol: str, start: str, end: str, today: date) -> Path:
-    return CACHE_DIR / f"{symbol.upper()}_{start}_{end}_{today.isoformat()}.csv"
+def _cache_path(symbol: str, start: str, end: str, today: date):
+    return cache_path("yfinance", f"{symbol.upper()}_{start}_{end}", today=today)
 
 
 def fetch_daily(
@@ -40,7 +37,7 @@ def fetch_daily(
     framework.
     """
     if fixture_mode_active():
-        df = load_fixture(f"yfinance_{symbol.upper()}.csv")
+        df = load_fixture(f"yfinance_{symbol.upper()}.csv", source="yfinance")
         if df is not None:
             return df
     end = end or date.today().isoformat()
@@ -86,6 +83,7 @@ def fetch_daily(
     df = df[keep].sort_index()
 
     if cache:
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        df.to_csv(_cache_path(symbol, start, end, today))
+        path = _cache_path(symbol, start, end, today)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(path)
     return df

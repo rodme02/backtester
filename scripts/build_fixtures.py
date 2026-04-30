@@ -34,20 +34,20 @@ from backtester.data.universe import load_universe  # noqa: E402
 from backtester.data.yfinance import fetch_daily as yf_fetch  # noqa: E402
 
 OUT = ROOT / "samples" / "fixtures"
-OUT.mkdir(parents=True, exist_ok=True)
 
 
-def write(df: pd.DataFrame, name: str) -> None:
-    path = OUT / name
+def write(df: pd.DataFrame, source: str, name: str) -> None:
+    path = OUT / source / name
     if df is None or df.empty:
-        print(f"  SKIP {name} (empty)")
+        print(f"  SKIP {source}/{name} (empty)")
         return
+    path.parent.mkdir(parents=True, exist_ok=True)
     if df.index.name is None:
         df.index.name = "datetime"
     if getattr(df.index, "tz", None) is not None:
         df.index = df.index.tz_localize(None)
     df.to_csv(path)
-    print(f"  wrote {path.name} ({len(df)} rows)")
+    print(f"  wrote {source}/{path.name} ({len(df)} rows)")
 
 
 def fetch_paginated(loader, symbol: str, *, start: str, end: str, **kw) -> pd.DataFrame:
@@ -87,7 +87,7 @@ print(f"[yfinance] {len(tickers)} tickers")
 for t in tickers:
     try:
         df = yf_fetch(t, start="2010-01-01", end="2024-12-31")
-        write(df, f"yfinance_{t.upper()}.csv")
+        write(df, "yfinance", f"yfinance_{t.upper()}.csv")
     except Exception as exc:
         print(f"  FAIL {t}: {exc!s:80.80}")
 
@@ -97,7 +97,7 @@ print(f"\n[fred] {len(fred_ids)} series")
 for sid in fred_ids:
     try:
         s = fred_fetch(sid)
-        write(s.to_frame(), f"fred_{sid}.csv")
+        write(s.to_frame(), "fred", f"fred_{sid}.csv")
     except Exception as exc:
         print(f"  FAIL {sid}: {exc!s:80.80}")
 
@@ -113,7 +113,7 @@ for sym in crypto_symbols:
             lambda s, **kw: fetch_klines(s, interval="1d", market="futures", **kw),
             sym, start="2021-01-01T00:00:00", end="2024-12-31T23:59:59",
         )
-        write(klines, f"binance_klines_futures_{sym}_1d.csv")
+        write(klines, "binance", f"binance_klines_futures_{sym}_1d.csv")
     except Exception as exc:
         print(f"  klines {sym} FAIL: {exc!s:80.80}")
 
@@ -121,7 +121,7 @@ for sym in crypto_symbols:
         funding = fetch_paginated(
             fetch_funding_rate, sym, start="2021-01-01", end="2024-12-31",
         )
-        write(funding, f"binance_funding_{sym}.csv")
+        write(funding, "binance", f"binance_funding_{sym}.csv")
     except Exception as exc:
         print(f"  funding {sym} FAIL: {exc!s:80.80}")
 
@@ -130,7 +130,7 @@ for sym in crypto_symbols:
             lambda s, **kw: fetch_premium_index_klines(s, interval="1d", **kw),
             sym, start="2021-01-01", end="2024-12-31",
         )
-        write(premium, f"binance_premium_{sym}_1d.csv")
+        write(premium, "binance", f"binance_premium_{sym}_1d.csv")
     except Exception as exc:
         print(f"  premium {sym} FAIL: {exc!s:80.80}")
 

@@ -13,19 +13,16 @@ from __future__ import annotations
 
 import os
 from datetime import date
-from pathlib import Path
 
 import pandas as pd
 from dotenv import load_dotenv
 
+from ._cache import cache_path
 from ._fixture import fixture_mode_active, load_fixture
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-CACHE_DIR = REPO_ROOT / "data_cache" / "fred"
 
-
-def _cache_path(series_id: str, today: date) -> Path:
-    return CACHE_DIR / f"{series_id}_{today.isoformat()}.csv"
+def _cache_path(series_id: str, today: date):
+    return cache_path("fred", series_id, today=today)
 
 
 def fetch_series(
@@ -36,7 +33,7 @@ def fetch_series(
 ) -> pd.Series:
     """Fetch a FRED series by ID, return as a date-indexed pandas Series."""
     if fixture_mode_active():
-        df = load_fixture(f"fred_{series_id}.csv")
+        df = load_fixture(f"fred_{series_id}.csv", source="fred")
         if df is not None:
             return df.iloc[:, 0]
     today = date.today()
@@ -61,6 +58,7 @@ def fetch_series(
     series.name = series_id
 
     if cache:
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        series.to_frame().to_csv(_cache_path(series_id, today))
+        path = _cache_path(series_id, today)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        series.to_frame().to_csv(path)
     return series

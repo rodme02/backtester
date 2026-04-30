@@ -14,35 +14,29 @@ All loaders return DataFrames indexed by ``datetime`` (UTC).
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
-from pathlib import Path
 from typing import Literal
 
 import pandas as pd
 import requests
 
+from ._cache import cache_path
 from ._fixture import fixture_mode_active, load_fixture
-
-REPO_ROOT = Path(__file__).resolve().parents[3]
-CACHE_DIR = REPO_ROOT / "data_cache" / "binance"
 
 SPOT_BASE = "https://api.binance.com"
 FUTURES_BASE = "https://fapi.binance.com"
 
 
-def _cache_path(name: str, today: date) -> Path:
-    return CACHE_DIR / f"{name}_{today.isoformat()}.csv"
-
-
 def _read_cache(name: str) -> pd.DataFrame | None:
-    path = _cache_path(name, date.today())
+    path = cache_path("binance", name, today=date.today())
     if path.exists():
         return pd.read_csv(path, parse_dates=["datetime"], index_col="datetime")
     return None
 
 
 def _write_cache(name: str, df: pd.DataFrame) -> None:
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    df.to_csv(_cache_path(name, date.today()))
+    path = cache_path("binance", name, today=date.today())
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(path)
 
 
 def _to_ts(d: str | datetime | None) -> int | None:
@@ -66,7 +60,10 @@ def fetch_klines(
 ) -> pd.DataFrame:
     """Fetch OHLCV klines. Returns columns: open, high, low, close, volume."""
     if fixture_mode_active():
-        df = load_fixture(f"binance_klines_{market}_{symbol.upper()}_{interval}.csv")
+        df = load_fixture(
+            f"binance_klines_{market}_{symbol.upper()}_{interval}.csv",
+            source="binance",
+        )
         if df is not None:
             if getattr(df.index, "tz", None) is None:
                 df.index = pd.DatetimeIndex(df.index).tz_localize("UTC")
@@ -116,7 +113,7 @@ def fetch_funding_rate(
 ) -> pd.DataFrame:
     """Fetch perpetual funding-rate history (8h granularity)."""
     if fixture_mode_active():
-        df = load_fixture(f"binance_funding_{symbol.upper()}.csv")
+        df = load_fixture(f"binance_funding_{symbol.upper()}.csv", source="binance")
         if df is not None:
             if getattr(df.index, "tz", None) is None:
                 df.index = pd.DatetimeIndex(df.index).tz_localize("UTC")
@@ -163,7 +160,10 @@ def fetch_premium_index_klines(
     ``close`` is the daily basis level.
     """
     if fixture_mode_active():
-        df = load_fixture(f"binance_premium_{symbol.upper()}_{interval}.csv")
+        df = load_fixture(
+            f"binance_premium_{symbol.upper()}_{interval}.csv",
+            source="binance",
+        )
         if df is not None:
             if getattr(df.index, "tz", None) is None:
                 df.index = pd.DatetimeIndex(df.index).tz_localize("UTC")
@@ -223,7 +223,10 @@ def fetch_long_short_ratio(
     prospectively for longer windows.
     """
     if fixture_mode_active():
-        df = load_fixture(f"binance_lsr_{kind}_{symbol.upper()}_{period}.csv")
+        df = load_fixture(
+            f"binance_lsr_{kind}_{symbol.upper()}_{period}.csv",
+            source="binance",
+        )
         if df is not None:
             return df
     name = f"lsr_{kind}_{symbol.upper()}_{period}_{start}_{end}"

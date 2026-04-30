@@ -20,9 +20,18 @@ def fixture_mode_active() -> bool:
     return os.environ.get("BACKTESTER_FIXTURE_MODE", "").strip() in ("1", "true", "TRUE")
 
 
-def load_fixture(filename: str) -> pd.DataFrame | None:
-    path = FIXTURES_DIR / filename
-    if not path.exists():
-        return None
-    df = pd.read_csv(path, parse_dates=["datetime"], index_col="datetime")
-    return df
+def load_fixture(filename: str, *, source: str | None = None) -> pd.DataFrame | None:
+    """Load a CI fixture from ``samples/fixtures/<source>/<filename>``.
+
+    ``source`` is the upstream-data subdirectory (``yfinance``, ``binance``,
+    ``fred``, ``news``); the legacy flat layout is checked as a fallback so
+    older fixtures still resolve.
+    """
+    candidates = []
+    if source is not None:
+        candidates.append(FIXTURES_DIR / source / filename)
+    candidates.append(FIXTURES_DIR / filename)
+    for path in candidates:
+        if path.exists():
+            return pd.read_csv(path, parse_dates=["datetime"], index_col="datetime")
+    return None

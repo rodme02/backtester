@@ -72,7 +72,7 @@ Each case reports identical metrics for direct comparison. The cross-cutting wri
 
 ```bash
 git clone https://github.com/rodme02/ml-signals-in-markets.git
-cd backtester
+cd ml-signals-in-markets
 python -m venv .venv && source .venv/bin/activate
 make install
 make test

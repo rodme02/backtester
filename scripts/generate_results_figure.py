@@ -6,7 +6,7 @@ add rows here.
 
 Usage::
 
-    python docs/generate_results_figure.py
+    python scripts/generate_results_figure.py
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 
-OUT = Path(__file__).resolve().parent / "results.png"
+OUT = Path(__file__).resolve().parents[1] / "docs" / "results.png"
 
 
 # (label, net_sharpe, ci_low, ci_high, group, near_miss)
