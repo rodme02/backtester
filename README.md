@@ -64,7 +64,7 @@ Each case reports identical metrics for direct comparison. The cross-cutting wri
 | ✅ 3 | **LSTM / carry+returns** | Crypto perps | **+0.36** | **0.46** | **−0.24 / +0.89** | **NEAR-MISS** (closest to PASS) |
 | ✅ 3 | TCN / carry+returns | Crypto perps | −1.35 | 0.002 | −1.13 / −1.52 | FAIL |
 | ✅ 3 | Transformer / carry+returns | Crypto perps | −0.86 | 0.012 | −1.13 / −0.64 | FAIL |
-| ⏳ 4 | LLM-derived sentiment (Groq free) | Equities + crypto | — | — | — | next |
+| ✅ 4 | LLM sentiment (Groq Llama 3.3 70B) | Equities + crypto | — | — | — | DATA-CONSTRAINED (free news ~24h) |
 
 **Headline finding (Section 8 of [the writeup](docs/writeup.md)):** three near-misses each show real *regime-conditional* edge in named, predictable directions; the *un*conditional Sharpe averages near zero by cancellation across regimes. The LSTM/carry-rank cell is the closest to passing the unconditional bar (DSR(0.25) = 0.46 vs 0.5 threshold). None of the 16 specs has a 95% CI strictly above zero net of costs at the daily-rebalance frequency we tested.
 

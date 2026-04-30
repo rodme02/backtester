@@ -179,15 +179,25 @@ This is the *calibration* result we wanted. The harness picks up modest, documen
 
 **If this were production.** Gate the strategy on a regime indicator (e.g. SPY > its 200-day SMA) and trade only in confirmed bulls. Over the 2005–2024 window that would have lifted net Sharpe from −0.04 to roughly +0.24, modulo regime-detection lag and the occasional false negative around regime transitions. The "positive control" *does* work — just not unconditionally.
 
-## 7. Case study 4 — LLM sentiment factor
+## 7. Case study 4 — LLM sentiment factor (Groq)
 
-→ `notebooks/04_llm_sentiment.ipynb` *(planned — runs after Case 1 / 2 / 3 v0.2 with the upgraded harness)*
+→ [`notebooks/04_llm_sentiment.ipynb`](../notebooks/04_llm_sentiment.ipynb)
 
-**Hypothesis.** A daily sentiment factor derived from per-ticker news headlines, scored by a free-tier LLM (Groq's Llama 3.3 70B), predicts next-day return sign well enough either as a standalone factor or as an added feature to Case 1's GBM.
+**Intended hypothesis.** A daily sentiment factor derived from per-ticker news headlines, scored by a free-tier LLM (Groq's Llama 3.3 70B), predicts next-day return sign well enough either as a standalone factor or as an added feature to Case 1's GBM.
 
-**Setup.** News pulled from per-ticker Yahoo Finance RSS (free, no key, cached). Each headline scored `[-1, +1]` by the LLM and cached per `(ticker, headline_hash, model_id)` so reruns are free and deterministic. Daily aggregation = mean over trailing N days, lagged 1 day to prevent same-day leakage. Same harness as Case 1.
+**Why this case is reportable as a *constraint*, not a Sharpe number.** `yfinance.Ticker(symbol).news` returns roughly the last 24 hours of headlines per ticker. For the multi-year cost-adjusted long/short backtest the rest of the survey demands, we need *years* of historical news per ticker. That data exists only in paid archives — Bloomberg, RavenPack, FNSPID, Refinitiv News — at $5k–$50k/yr. **There is no free public source covering 2020–2024 daily news at ticker resolution for the universe we use.**
 
-**Expected outcome (literature):** sentiment factors are notoriously hard to monetise on daily horizons; news flow is sparse, redundant across sources, and largely already-priced. Likely null. The honest negative completes the survey.
+**What this notebook delivers.**
+
+1. **Pipeline demonstration on synthetic ground truth.** Headlines with known latent sentiment are scored by Groq and the LLM-vs-truth Spearman correlation is computed; passes if ≥ 0.6 (the LLM is fit-for-purpose). Reproducible with `GROQ_API_KEY` set; fixture-mode gives plumbing-only verification.
+2. **Real-headline scoring smoke test** on the most-recent yfinance news (24-hour window, ~80 headlines across 8 tickers): inspect score distribution, top/bottom-rated headlines, sanity-check the LLM behaves on real text.
+3. **Causality check** — `lagged_sentiment_factor` is leakage-tested by `tests/test_features_sentiment.py::test_lagged_factor_no_future_leakage` (verifies factor at `t` depends only on scores at `< t`).
+
+**Verdict.** **NULL — not because the signal failed, but because free public news data does not cover the multi-year window the harness requires.** The pipeline is built and tested; the LLM scoring is fast and consistent on real text; the causality is enforced. What is missing is the *data*.
+
+**Why this is itself a finding.** Retail blog posts that claim a working LLM-sentiment trading edge typically use *forward-looking sentiment from very recent data* and report in-sample IC. Under this survey's evaluation conditions — multi-year purged-walk-forward CV, transaction costs, deflated Sharpe — none of the cases that *did* run their full data through the harness produced a clear unconditional-passing result. There is no a-priori reason to expect LLM sentiment would be different on multi-year data; the absent data simply prevents us from confirming.
+
+**If this were production.** Subscribe to a paid news archive (e.g. RavenPack, FNSPID, or Bloomberg news desk) covering 2018–2024 at daily resolution per ticker. Run the pipeline at notebook section 2 over that data. The methodology change is *zero* — the existing pipeline, given the data, would produce a row in the survey table identical in shape to Cases 1, 2, 3, 5.
 
 ## 8. Cross-cutting findings
 
@@ -207,6 +217,7 @@ This is the *calibration* result we wanted. The harness picks up modest, documen
 | 3 | **LSTM / union features** | binary | Crypto perps | 6 bps + funding | **+0.36** | **0.46** | **−0.24 / +0.89** | **STRONGEST NEAR-MISS** |
 | 3 | TCN / union features | binary | Crypto perps | 6 bps + funding | −1.35 | 0.002 | −1.13 / −1.52 | FAIL |
 | 3 | Transformer / union features | binary | Crypto perps | 6 bps + funding | −0.86 | 0.012 | −1.13 / −0.64 | FAIL |
+| 4 | LLM sentiment (Groq, Llama 3.3 70B) | — | Equities + crypto | — | — | — | DATA-CONSTRAINED (free news ~ 24h, paid archive needed) |
 | 5 | JT 12-1 momentum (positive control) | — | US equities | 1.5 + 5 bps/yr | −0.041 | 0.427* | −0.65 / +0.25 | FAIL unconditional; calibration ✓ |
 
 *\*DSR(n_trials=1) = PSR(benchmark=0); shown at all variance levels since single-trial DSR is variance-invariant.*
