@@ -68,6 +68,8 @@ def fetch_klines(
     if fixture_mode_active():
         df = load_fixture(f"binance_klines_{market}_{symbol.upper()}_{interval}.csv")
         if df is not None:
+            if getattr(df.index, "tz", None) is None:
+                df.index = pd.DatetimeIndex(df.index).tz_localize("UTC")
             return df
     name = f"klines_{market}_{symbol.upper()}_{interval}_{start}_{end}"
     if cache and (cached := _read_cache(name)) is not None:
@@ -116,6 +118,8 @@ def fetch_funding_rate(
     if fixture_mode_active():
         df = load_fixture(f"binance_funding_{symbol.upper()}.csv")
         if df is not None:
+            if getattr(df.index, "tz", None) is None:
+                df.index = pd.DatetimeIndex(df.index).tz_localize("UTC")
             return df
     name = f"funding_{symbol.upper()}_{start}_{end}"
     if cache and (cached := _read_cache(name)) is not None:
@@ -161,6 +165,8 @@ def fetch_premium_index_klines(
     if fixture_mode_active():
         df = load_fixture(f"binance_premium_{symbol.upper()}_{interval}.csv")
         if df is not None:
+            if getattr(df.index, "tz", None) is None:
+                df.index = pd.DatetimeIndex(df.index).tz_localize("UTC")
             return df
     name = f"premium_{symbol.upper()}_{interval}_{start}_{end}"
     if cache and (cached := _read_cache(name)) is not None:

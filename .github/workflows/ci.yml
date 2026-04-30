@@ -43,8 +43,11 @@ jobs:
         env:
           BACKTESTER_FIXTURE_MODE: "1"
         run: |
+          mkdir -p /tmp/nb-output
           for nb in notebooks/*.ipynb; do
             echo "::group::$nb"
-            jupyter nbconvert --to notebook --execute --inplace "$nb"
+            jupyter nbconvert --to notebook --execute "$nb" \
+              --output "/tmp/nb-output/$(basename "$nb")" \
+              --ExecutePreprocessor.timeout=1200
             echo "::endgroup::"
           done
