@@ -1,6 +1,6 @@
 # ML Signals in Markets — An Honest Evaluation
 
-[![CI](https://github.com/rodme02/backtester/actions/workflows/ci.yml/badge.svg)](https://github.com/rodme02/backtester/actions/workflows/ci.yml)
+[![CI](https://github.com/rodme02/ml-signals-in-markets/actions/workflows/ci.yml/badge.svg)](https://github.com/rodme02/ml-signals-in-markets/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 
@@ -71,7 +71,7 @@ Each case reports identical metrics for direct comparison. The cross-cutting wri
 ## Quickstart
 
 ```bash
-git clone https://github.com/rodme02/backtester.git
+git clone https://github.com/rodme02/ml-signals-in-markets.git
 cd backtester
 python -m venv .venv && source .venv/bin/activate
 make install
